@@ -1,83 +1,96 @@
-// frontend/src/components/3d/SnackModel.tsx
+// src/components/3d/SnackModel.tsx
+import React, { useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { Sphere, Box, Cylinder } from '@react-three/drei';
+import { Ingredient } from '../../types/snack';
+import * as THREE from 'three';
 
-import React, { useMemo } from 'react';
-import { useSnackStore } from '../../stores/snackStore';
-import { useLoader } from '@react-three/fiber';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+// Remove GLTFLoader import since we're using basic geometries
+// The error was: Cannot find module 'three/examples/jsm/loaders/GLTFLoader'
 
-import { Group } from 'three';
-
-interface ModelProps {
-    modelPath: string;
-    position?: [number, number, number];
-    scale?: [number, number, number];
-    rotation?: [number, number, number];
+interface SnackModelProps {
+    ingredients: Ingredient[];
+    snackType: string;
 }
 
-const Model: React.FC<ModelProps> = ({ modelPath, position = [0, 0, 0], scale = [1, 1, 1], rotation = [0, 0, 0] }) => {
-    const gltf = useLoader(GLTFLoader, modelPath);
+export default function SnackModel({ ingredients, snackType }: SnackModelProps) {
+    const groupRef = useRef<THREE.Group>(null);
 
-    return (
-        <primitive
-            object={gltf.scene}
-            position={position}
-            scale={scale}
-            rotation={rotation}
-            dispose={null}
-        />
-    );
-};
+    useFrame((state) => {
+        if (groupRef.current) {
+            groupRef.current.rotation.y += 0.005;
+        }
+    });
 
-const SnackModel: React.FC = () => {
-    const currentSnack = useSnackStore(state => state.currentSnack);
-
-    // Base model path mapping based on snack base type
-    const baseModelMap: Record<string, string> = {
-        'energy-bar': '/models/energy_bar.glb',
-        'protein-ball': '/models/protein_ball.glb',
-        'granola-cluster': '/models/granola_cluster.glb',
-        // Add more mappings as needed
-    };
-
-    // Ingredient model paths map (example)
-    const ingredientModelMap: Record<string, string> = {
-        oats: '/models/oats.glb',
-        dates: '/models/dates.glb',
-        almonds: '/models/almonds.glb',
-        honey: '/models/honey.glb',
-        protein_powder_plant: '/models/protein_powder_plant.glb',
-        // Add more as needed
-    };
-
-    const baseModelPath = baseModelMap[currentSnack.base.type] || '/models/default_base.glb';
-
-    // For simplicity, position ingredients on the base in a line with some offset
-    // You can expand this logic later for better 3D arrangement or layering
-    const ingredientPositions = useMemo(() => {
-        return currentSnack.ingredients.map((_, idx) => [idx * 0.3 - (currentSnack.ingredients.length / 2) * 0.3, 0.1, 0]);
-    }, [currentSnack.ingredients.length]);
-
-    return (
-        <group>
-            {/* Base Model */}
-            <Model modelPath={baseModelPath} scale={[1, 1, 1]} />
-
-            {/* Ingredients Models */}
-            {currentSnack.ingredients.map((ingredient, idx) => {
-                const modelPath = ingredientModelMap[ingredient.name];
-                if (!modelPath) return null; // Skip if no model available
-
+    const getSnackBase = () => {
+        switch (snackType) {
+            case 'energy-bar':
                 return (
-                    <Model
-                        key={ingredient.name}
-                        modelPath={modelPath}
-                        position={ingredientPositions[idx]}
-                        scale={[0.15, 0.15, 0.15]}
-                    />
+                    <Box args={[2, 0.4, 1]} position={[0, 0, 0]}>
+                        <meshStandardMaterial color="#DEB887" />
+                    </Box>
                 );
-            })}
+            case 'protein-ball':
+                return (
+                    <Sphere args={[0.8]} position={[0, 0, 0]}>
+                        <meshStandardMaterial color="#DEB887" />
+                    </Sphere>
+                );
+            case 'smoothie-bowl':
+                return (
+                    <Cylinder args={[1, 0.8, 0.5]} position={[0, 0, 0]}>
+                        <meshStandardMaterial color="#E6E6FA" />
+                    </Cylinder>
+                );
+            default:
+                return (
+                    <Box args={[1.5, 0.3, 0.8]} position={[0, 0, 0]}>
+                        <meshStandardMaterial color="#DEB887" />
+                    </Box>
+                );
+        }
+    };
+
+    const getIngredientModel = (ingredient: Ingredient, index: number) => {
+        const position: [number, number, number] = [
+            (Math.random() - 0.5) * 1.5,
+            0.3 + Math.random() * 0.2,
+            (Math.random() - 0.5) * 1.0
+        ];
+
+        const name = ingredient.name.toLowerCase();
+
+        if (name.includes('nut') || name.includes('seed')) {
+            return (
+                <Sphere key={index} args={[0.08]} position={position}>
+                    <meshStandardMaterial color="#8B4513" />
+                </Sphere>
+            );
+        } else if (name.includes('chocolate')) {
+            return (
+                <Box key={index} args={[0.1, 0.05, 0.1]} position={position}>
+                    <meshStandardMaterial color="#4A2C2A" />
+                </Box>
+            );
+        } else if (name.includes('berr')) {
+            return (
+                <Sphere key={index} args={[0.06]} position={position}>
+                    <meshStandardMaterial color="#DC143C" />
+                </Sphere>
+            );
+        } else {
+            return (
+                <Sphere key={index} args={[0.07]} position={position}>
+                    <meshStandardMaterial color="#CD853F" />
+                </Sphere>
+            );
+        }
+    };
+
+    return (
+        <group ref={groupRef}>
+            {getSnackBase()}
+            {ingredients.map((ingredient, index) => getIngredientModel(ingredient, index))}
         </group>
     );
-};
-
-export default SnackModel;
+}

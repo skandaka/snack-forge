@@ -1,3 +1,4 @@
+# routes/ingredients.py
 from fastapi import APIRouter, HTTPException, Depends, Request, Query
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
@@ -23,6 +24,19 @@ class IngredientCompatibilityRequest(BaseModel):
 class NutritionComparisonRequest(BaseModel):
     ingredient_a: str = Field(..., description="First ingredient to compare")
     ingredient_b: str = Field(..., description="Second ingredient to compare")
+
+
+class SimilarIngredientsRequest(BaseModel):
+    ingredient_name: str = Field(..., description="Base ingredient")
+    count: int = Field(5, ge=1, le=20, description="Number of similar ingredients to return")
+    dietary_restrictions: List[str] = Field(default=[], description="Dietary restrictions to consider")
+
+
+class SubstitutionRequest(BaseModel):
+    ingredient_name: str = Field(..., description="Ingredient to substitute")
+    dietary_restrictions: List[str] = Field(default=[], description="Dietary requirements")
+    recipe_context: Optional[List[str]] = Field(default=None, description="Other ingredients in recipe")
+    substitution_reason: Optional[str] = Field(default=None, description="Reason for substitution")
 
 
 def get_ingredient_embeddings(request: Request):
@@ -241,20 +255,18 @@ async def get_ingredient_details(
 
 @router.post("/similar")
 async def find_similar_ingredients(
-        ingredient_name: str = Field(..., description="Base ingredient"),
-        count: int = Field(5, ge=1, le=20, description="Number of similar ingredients to return"),
-        dietary_restrictions: List[str] = Field(default=[], description="Dietary restrictions to consider"),
+        request: SimilarIngredientsRequest,
         embeddings=Depends(get_ingredient_embeddings)
 ):
     """Find ingredients similar to a given ingredient"""
     try:
-        similar_ingredients = embeddings.find_similar_ingredients(ingredient_name, top_k=count * 2)
+        similar_ingredients = embeddings.find_similar_ingredients(request.ingredient_name, top_k=request.count * 2)
 
         if not similar_ingredients:
             return {
                 "success": True,
                 "data": {"similar_ingredients": []},
-                "message": f"No similar ingredients found for '{ingredient_name}'"
+                "message": f"No similar ingredients found for '{request.ingredient_name}'"
             }
 
         # Filter by dietary restrictions
@@ -264,27 +276,27 @@ async def find_similar_ingredients(
             if not ingredient_data:
                 continue
 
-            if dietary_restrictions:
-                if not _meets_dietary_restrictions_ingredient(ingredient_data, dietary_restrictions):
+            if request.dietary_restrictions:
+                if not _meets_dietary_restrictions_ingredient(ingredient_data, request.dietary_restrictions):
                     continue
 
             filtered_similar.append({
                 "name": name,
                 "similarity_score": float(similarity),
                 "category": ingredient_data.get("category"),
-                "reason": _generate_similarity_reason(ingredient_name, name, embeddings),
-                "nutrition_comparison": _compare_nutrition_brief(ingredient_name, name, embeddings)
+                "reason": _generate_similarity_reason(request.ingredient_name, name, embeddings),
+                "nutrition_comparison": _compare_nutrition_brief(request.ingredient_name, name, embeddings)
             })
 
-            if len(filtered_similar) >= count:
+            if len(filtered_similar) >= request.count:
                 break
 
         return {
             "success": True,
             "data": {
-                "base_ingredient": ingredient_name,
+                "base_ingredient": request.ingredient_name,
                 "similar_ingredients": filtered_similar,
-                "dietary_restrictions_applied": dietary_restrictions
+                "dietary_restrictions_applied": request.dietary_restrictions
             },
             "message": f"Found {len(filtered_similar)} similar ingredients"
         }
@@ -296,22 +308,19 @@ async def find_similar_ingredients(
 
 @router.post("/substitute")
 async def get_substitution_suggestions(
-        ingredient_name: str = Field(..., description="Ingredient to substitute"),
-        dietary_restrictions: List[str] = Field(default=[], description="Dietary requirements"),
-        recipe_context: Optional[List[str]] = Field(default=None, description="Other ingredients in recipe"),
-        substitution_reason: Optional[str] = Field(default=None, description="Reason for substitution"),
+        request: SubstitutionRequest,
         embeddings=Depends(get_ingredient_embeddings)
 ):
     """Get intelligent substitution suggestions for an ingredient"""
     try:
         # Get base substitutions
-        substitutions = embeddings.suggest_substitutions(ingredient_name, dietary_restrictions)
+        substitutions = embeddings.suggest_substitutions(request.ingredient_name, request.dietary_restrictions)
 
         # Enhance with context analysis if recipe provided
-        if recipe_context:
+        if request.recipe_context:
             for substitution in substitutions:
                 substitution["context_analysis"] = _analyze_recipe_context(
-                    substitution["name"], recipe_context, embeddings
+                    substitution["name"], request.recipe_context, embeddings
                 )
 
         # Add substitution ratios and preparation notes
@@ -319,20 +328,20 @@ async def get_substitution_suggestions(
         for sub in substitutions:
             enhanced_sub = sub.copy()
             enhanced_sub.update({
-                "substitution_ratio": _get_substitution_ratio(ingredient_name, sub["name"]),
-                "preparation_notes": _get_preparation_notes(ingredient_name, sub["name"]),
-                "expected_changes": _predict_recipe_changes(ingredient_name, sub["name"], embeddings)
+                "substitution_ratio": _get_substitution_ratio(request.ingredient_name, sub["name"]),
+                "preparation_notes": _get_preparation_notes(request.ingredient_name, sub["name"]),
+                "expected_changes": _predict_recipe_changes(request.ingredient_name, sub["name"], embeddings)
             })
             enhanced_substitutions.append(enhanced_sub)
 
         return {
             "success": True,
             "data": {
-                "original_ingredient": ingredient_name,
+                "original_ingredient": request.ingredient_name,
                 "substitutions": enhanced_substitutions,
-                "substitution_reason": substitution_reason,
-                "dietary_restrictions": dietary_restrictions,
-                "context_considered": recipe_context is not None
+                "substitution_reason": request.substitution_reason,
+                "dietary_restrictions": request.dietary_restrictions,
+                "context_considered": request.recipe_context is not None
             },
             "message": f"Found {len(enhanced_substitutions)} substitution options"
         }
@@ -552,45 +561,57 @@ async def get_trending_ingredients(
 ):
     """Get trending ingredients based on usage patterns"""
     try:
-        # This would typically pull from usage analytics
-        # For demo purposes, we'll return ingredients with high health scores
-
         # Mock trending calculation based on health properties
-        trending_ingredients = []
+        trending_ingredients = [
+            {
+                "name": "chia_seeds",
+                "trend_score": 95,
+                "category": "nuts_seeds",
+                "reason": "High omega-3 content and fiber",
+                "growth_percent": 23.5
+            },
+            {
+                "name": "dark_chocolate_70",
+                "trend_score": 88,
+                "category": "chocolate",
+                "reason": "Antioxidant benefits",
+                "growth_percent": 18.2
+            },
+            {
+                "name": "protein_powder_plant",
+                "trend_score": 85,
+                "category": "protein",
+                "reason": "Plant-based protein demand",
+                "growth_percent": 31.7
+            },
+            {
+                "name": "quinoa",
+                "trend_score": 82,
+                "category": "grains",
+                "reason": "Complete protein source",
+                "growth_percent": 15.3
+            },
+            {
+                "name": "blueberries_dried",
+                "trend_score": 80,
+                "category": "fruits",
+                "reason": "Antioxidant powerhouse",
+                "growth_percent": 12.8
+            }
+        ]
 
-        # Get ingredient embeddings service (simplified for demo)
-        # In real implementation, you'd inject this properly
+        # Filter by category if specified
+        if category:
+            trending_ingredients = [ing for ing in trending_ingredients if ing["category"] == category]
 
         return {
             "success": True,
             "data": {
-                "trending_ingredients": [
-                    {
-                        "name": "chia_seeds",
-                        "trend_score": 95,
-                        "category": "nuts_seeds",
-                        "reason": "High omega-3 content and fiber",
-                        "growth_percent": 23.5
-                    },
-                    {
-                        "name": "dark_chocolate_70",
-                        "trend_score": 88,
-                        "category": "chocolate",
-                        "reason": "Antioxidant benefits",
-                        "growth_percent": 18.2
-                    },
-                    {
-                        "name": "protein_powder_plant",
-                        "trend_score": 85,
-                        "category": "protein",
-                        "reason": "Plant-based protein demand",
-                        "growth_percent": 31.7
-                    }
-                ][:limit],
+                "trending_ingredients": trending_ingredients[:limit],
                 "period": period,
                 "category_filter": category
             },
-            "message": f"Retrieved {min(3, limit)} trending ingredients"
+            "message": f"Retrieved {min(len(trending_ingredients), limit)} trending ingredients"
         }
 
     except Exception as e:
@@ -901,7 +922,8 @@ def _generate_compatibility_recommendations(avg_score: float, conflicts: List, a
     return recommendations
 
 
-def _generate_comparison_summary(ingredient_a: str, ingredient_b: str, nutrition_comp: Dict, properties_comp: Dict, allergen_comp: Dict) -> Dict[str, str]:
+def _generate_comparison_summary(ingredient_a: str, ingredient_b: str, nutrition_comp: Dict, properties_comp: Dict,
+                                 allergen_comp: Dict) -> Dict[str, str]:
     """Generate summary of ingredient comparison"""
     summary = {}
 

@@ -1,3 +1,4 @@
+// src/stores/snackStore.ts
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import {
@@ -102,6 +103,9 @@ interface SnackStore {
     loadAvailableIngredients: () => Promise<void>;
     loadUserSnacks: () => Promise<void>;
     initializeApp: () => Promise<void>;
+
+    // Helper function - ADD THIS TO INTERFACE
+    updateAISuggestions: () => void;
 }
 
 const defaultSnackBase: SnackBase = {
@@ -491,7 +495,7 @@ export const useSnackStore = create<SnackStore>()(
                     const isFavorite = state.favoriteSnacks.includes(snackId);
 
                     try {
-                        await api.toggleFavorite(snackId);
+                        await api.toggleFavorite(snackId, 'demo-user');
 
                         set((currentState) => ({
                             favoriteSnacks: isFavorite
@@ -578,7 +582,8 @@ export const useSnackStore = create<SnackStore>()(
                     const state = get();
 
                     try {
-                        const response = await api.generateVariations({base_recipe: state.currentSnack.ingredients,
+                        const response = await api.generateVariations({
+                            base_recipe: state.currentSnack.ingredients,
                             variation_themes: themes
                         });
 
@@ -905,14 +910,14 @@ export const useSnackStore = create<SnackStore>()(
                     });
                 },
 
-                // Helper function to update AI suggestions
+                // Helper function to update AI suggestions - FIXED
                 updateAISuggestions: () => {
                     const state = get();
                     const nutrition = state.currentSnack.nutrition;
 
                     if (!nutrition) return;
 
-                    const suggestions = [];
+                    const suggestions: string[] = []; // EXPLICIT TYPE ANNOTATION
 
                     if (nutrition.health_score < 60) {
                         suggestions.push('Try adding more nutrient-dense ingredients');
