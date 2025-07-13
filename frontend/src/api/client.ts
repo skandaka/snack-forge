@@ -1,4 +1,3 @@
-// src/api/client.ts
 import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
 import {
     APIResponse,
@@ -11,10 +10,8 @@ import {
     IngredientCompatibility
 } from '../types/snack';
 
-// API Configuration
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
-// Type-safe error interface
 interface APIError {
     detail?: string;
     message?: string;
@@ -32,10 +29,8 @@ class APIClient {
             },
         });
 
-        // Request interceptor for authentication
         this.client.interceptors.request.use(
             (config) => {
-                // Add authentication token if available
                 if (typeof window !== 'undefined') {
                     const token = localStorage.getItem('auth_token');
                     if (token) {
@@ -49,16 +44,13 @@ class APIClient {
             }
         );
 
-        // Response interceptor for error handling
         this.client.interceptors.response.use(
             (response) => response,
             (error: AxiosError) => {
-                // Handle common errors with proper type checking
                 if (error.response) {
                     const status = error.response.status;
 
                     if (status === 401) {
-                        // Unauthorized - redirect to login or refresh token
                         if (typeof window !== 'undefined') {
                             localStorage.removeItem('auth_token');
                         }
@@ -74,7 +66,6 @@ class APIClient {
         );
     }
 
-    // Nutrition API methods
     async calculateNutrition(data: {
         ingredients: Ingredient[];
         serving_size_g?: number;
@@ -112,7 +103,6 @@ class APIClient {
         return this.client.post('/nutrition/optimize', data);
     }
 
-    // AI API methods
     async getAIRecommendation(data: {
         preferences: any;
         health_goals: string[];
@@ -169,7 +159,6 @@ class APIClient {
         return this.client.get('/ai/goals');
     }
 
-    // Snacks API methods
     async saveSnack(data: {
         recipe: any;
         user_id?: string;
@@ -333,18 +322,14 @@ class APIClient {
         return this.client.get('/ingredients/recommendations/trending', { params });
     }
 
-    // User and preferences methods
     async getUserSnacks(userId?: string): Promise<AxiosResponse<APIResponse<any>>> {
         if (userId) {
             return this.getSnackLibrary({ user_id: userId });
         }
-        // Return demo snacks if no user ID
         return this.client.get('/snacks/library', { params: { limit: 20 } });
     }
 
     async updateUserPreferences(data: any): Promise<AxiosResponse<APIResponse<any>>> {
-        // This would typically be a user preferences endpoint
-        // For now, we'll store in localStorage
         if (typeof window !== 'undefined') {
             localStorage.setItem('user_preferences', JSON.stringify(data));
         }
@@ -354,7 +339,6 @@ class APIClient {
     }
 
     async getUserPreferences(): Promise<AxiosResponse<APIResponse<any>>> {
-        // For now, return from localStorage
         let preferences = {};
         if (typeof window !== 'undefined') {
             const stored = localStorage.getItem('user_preferences');
@@ -370,9 +354,7 @@ class APIClient {
         } as AxiosResponse<APIResponse<any>>);
     }
 
-    // Health and analytics methods
     async getHealthInsights(userId?: string): Promise<AxiosResponse<APIResponse<any>>> {
-        // Mock implementation - would call analytics endpoint
         return Promise.resolve({
             data: {
                 success: true,
@@ -387,15 +369,12 @@ class APIClient {
         } as AxiosResponse<APIResponse<any>>);
     }
 
-    // Utility methods
     async healthCheck(): Promise<AxiosResponse<APIResponse<any>>> {
         return this.client.get('/health');
     }
 
-    // Error handling utilities with proper type safety
     handleError(error: AxiosError): string {
         if (error.response) {
-            // Server responded with error status
             const status = error.response.status;
             const data = error.response.data as APIError;
 
@@ -415,15 +394,12 @@ class APIClient {
 
             return data?.detail || data?.message || `Error ${status}`;
         } else if (error.request) {
-            // Network error
             return 'Network error. Please check your connection.';
         } else {
-            // Other error
             return error.message || 'An unexpected error occurred';
         }
     }
 
-    // Request cancellation
     private cancelTokens: Map<string, AbortController> = new Map();
 
     cancelRequest(requestId: string): void {
@@ -434,7 +410,6 @@ class APIClient {
         }
     }
 
-    // Cache management (simple in-memory cache)
     private cache: Map<string, { data: any; expiry: number }> = new Map();
     private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
@@ -458,7 +433,6 @@ class APIClient {
         });
     }
 
-    // Cached versions of frequently called methods
     async getCachedIngredientDetails(ingredientName: string): Promise<AxiosResponse<APIResponse<any>>> {
         const cacheKey = this.getCacheKey(`ingredient-${ingredientName}`);
         const cached = this.getFromCache<AxiosResponse<APIResponse<any>>>(cacheKey);
@@ -485,19 +459,15 @@ class APIClient {
         return result;
     }
 
-    // Clear cache
     clearCache(): void {
         this.cache.clear();
     }
 }
 
-// Create and export singleton instance
 export const api = new APIClient();
 
-// Export the class for testing or custom instances
 export { APIClient };
 
-// Helper functions for common operations
 export const nutritionHelpers = {
     formatNutrientValue: (value: number, unit: string): string => {
         if (unit === 'g') {
@@ -531,7 +501,6 @@ export const nutritionHelpers = {
     }
 };
 
-// Type guards for API responses
 export const typeGuards = {
     isAPIResponse: <T>(response: any): response is APIResponse<T> => {
         return response && typeof response.success === 'boolean' && 'data' in response && 'message' in response;

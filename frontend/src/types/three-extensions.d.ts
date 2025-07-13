@@ -1,4 +1,7 @@
-// src/types/three-extensions.d.ts
+import { GLTF } from 'three/examples/jsm/loaders/GLTFLoader';
+import { StoreApi } from 'zustand';
+import { SnackStore } from '../stores/snackStore'; // Adjust path if needed
+
 declare module 'three/examples/jsm/loaders/GLTFLoader' {
     import { Loader, Group } from 'three';
 
@@ -16,5 +19,12 @@ declare module 'three/examples/jsm/loaders/GLTFLoader' {
             onProgress?: (event: ProgressEvent) => void,
             onError?: (event: ErrorEvent) => void
         ): void;
+    }
+}
+
+// Add this to declare the global property for your Zustand store
+declare global {
+    interface Window {
+        useSnackStore: StoreApi<SnackStore>;
     }
 }

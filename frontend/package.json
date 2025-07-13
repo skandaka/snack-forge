@@ -9,41 +9,30 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@headlessui/react": "^2.2.4",
-    "@heroicons/react": "^2.2.0",
-    "@react-spring/three": "~9.7.5",
-    "@react-three/drei": "^9.77.3",
-    "@react-three/fiber": "^8.15.11",
+    "@google/generative-ai": "^0.14.1",
+    "@react-three/drei": "^9.108.3",
+    "@react-three/fiber": "^8.16.8",
     "@react-three/postprocessing": "^2.16.2",
-    "axios": "^1.10.0",
-    "framer-motion": "^11.5.0",
-    "immer": "^10.1.1",
-    "lucide-react": "^0.437.0",
+    "autoprefixer": "^10.4.21",
+    "axios": "^1.7.2",
+    "framer-motion": "^11.3.2",
+    "lucide-react": "^0.407.0",
     "next": "14.2.30",
     "react": "^18",
-    "react-dnd": "^16.0.1",
-    "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "^18",
-    "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
-    "three": "0.155.0",
-    "three-mesh-bvh": "^0.6.8",
-    "zustand": "^5.0.6"
+    "three": "^0.166.1",
+    "zustand": "^4.5.4"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "@types/three": "^0.160.0",
-    "autoprefixer": "^10.0.1",
+    "@types/three": "^0.166.0",
     "eslint": "^8",
     "eslint-config-next": "14.2.30",
-    "postcss": "^8.4.35",
-    "tailwindcss": "^3.3.0",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
     "typescript": "^5"
-  },
-  "overrides": {
-    "three": "0.155.0",
-    "three-mesh-bvh": "^0.6.8"
   }
 }

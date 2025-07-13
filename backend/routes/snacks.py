@@ -51,16 +51,13 @@ class SnackSearchRequest(BaseModel):
 
 
 def get_nutrition_service(request: Request):
-    """Dependency to get nutrition service from app state"""
     return request.app.state.nutrition_service
 
 
 def get_ai_service(request: Request):
-    """Dependency to get AI service from app state"""
     return request.app.state.ai_service
 
 
-# In-memory storage for demo (replace with database in production)
 snack_database = {}
 user_favorites = {}
 snack_ratings = {}
@@ -71,17 +68,13 @@ async def save_snack_recipe(
         request: SnackSaveRequest,
         nutrition_service=Depends(get_nutrition_service)
 ):
-    """Save a new snack recipe with nutrition analysis"""
     try:
-        # Generate unique ID
         snack_id = str(uuid.uuid4())
 
-        # Calculate nutrition for the recipe
         nutrition_analysis = nutrition_service.calculate_snack_nutrition(
             request.recipe.ingredients
         )
 
-        # Create complete snack record
         snack_record = {
             "id": snack_id,
             "name": request.recipe.name,
@@ -103,10 +96,8 @@ async def save_snack_recipe(
             "rating_count": 0
         }
 
-        # Save to database
         snack_database[snack_id] = snack_record
 
-        # Add to favorites if requested
         if request.is_favorite and request.user_id:
             if request.user_id not in user_favorites:
                 user_favorites[request.user_id] = []
@@ -136,17 +127,12 @@ async def get_snack_library(
         sort_order: str = Query("desc", description="Sort order (asc/desc)"),
         include_nutrition: bool = Query(True, description="Include nutrition analysis")
 ):
-    """Get paginated snack library with filtering options"""
     try:
-        # Get all snacks (in production, this would be a database query)
         all_snacks = list(snack_database.values())
 
-        # Filter by user if specified
         if user_id:
             all_snacks = [s for s in all_snacks if s.get("created_by") == user_id]
 
-        # Sort snacks
-        reverse_sort = sort_order.lower() == "desc"
         if sort_by == "health_score":
             all_snacks.sort(key=lambda x: x.get("health_score", 0), reverse=reverse_sort)
         elif sort_by == "rating":
@@ -156,11 +142,9 @@ async def get_snack_library(
         else:  # created_date
             all_snacks.sort(key=lambda x: x.get("created_date", ""), reverse=reverse_sort)
 
-        # Apply pagination
         total_count = len(all_snacks)
         paginated_snacks = all_snacks[offset:offset + limit]
 
-        # Remove nutrition analysis if not requested
         if not include_nutrition:
             for snack in paginated_snacks:
                 snack.pop("nutrition_analysis", None)
@@ -195,14 +179,12 @@ async def get_snack_details(
         include_similar: bool = Query(False, description="Include similar snacks"),
         user_id: Optional[str] = Query(None, description="User ID for personalized data")
 ):
-    """Get detailed information about a specific snack"""
     try:
         if snack_id not in snack_database:
             raise HTTPException(status_code=404, detail="Snack not found")
 
         snack = snack_database[snack_id].copy()
 
-        # Add user-specific data
         if user_id:
             snack["is_favorite"] = (
                     user_id in user_favorites and
@@ -212,7 +194,6 @@ async def get_snack_details(
 
         response_data = {"snack": snack}
 
-        # Add similar snacks if requested
         if include_similar:
             similar_snacks = _find_similar_snacks(snack, limit=5)
             response_data["similar_snacks"] = similar_snacks
@@ -235,14 +216,11 @@ async def search_snacks(
         request: SnackSearchRequest,
         nutrition_service=Depends(get_nutrition_service)
 ):
-    """Advanced search for snacks with multiple criteria"""
     try:
-        # Get all snacks
         all_snacks = list(snack_database.values())
         filtered_snacks = []
 
         for snack in all_snacks:
-            # Text search
             if request.query:
                 query_lower = request.query.lower()
                 if not any(query_lower in field.lower() for field in [
@@ -252,36 +230,30 @@ async def search_snacks(
                 ]):
                     continue
 
-            # Ingredient requirements
             if request.ingredients:
                 snack_ingredients = [ing["name"] for ing in snack["ingredients"]]
                 if not all(req_ing in snack_ingredients for req_ing in request.ingredients):
                     continue
 
-            # Exclude ingredients
             if request.exclude_ingredients:
                 snack_ingredients = [ing["name"] for ing in snack["ingredients"]]
                 if any(excl_ing in snack_ingredients for excl_ing in request.exclude_ingredients):
                     continue
 
-            # Dietary restrictions
             if request.dietary_restrictions:
                 if not _meets_dietary_restrictions(snack, request.dietary_restrictions):
                     continue
 
-            # Prep time filter
             if request.max_prep_time:
                 prep_time = snack.get("prep_time_minutes", 0)
                 if prep_time > request.max_prep_time:
                     continue
 
-            # Health score filter
             if request.min_health_score:
                 health_score = snack.get("health_score", 0)
                 if health_score < request.min_health_score:
                     continue
 
-            # Tags filter
             if request.tags:
                 snack_tags = snack.get("tags", [])
                 if not all(req_tag in snack_tags for req_tag in request.tags):
@@ -289,7 +261,6 @@ async def search_snacks(
 
             filtered_snacks.append(snack)
 
-        # Sort by relevance (health score for now)
         filtered_snacks.sort(key=lambda x: x.get("health_score", 0), reverse=True)
 
         return {
@@ -312,20 +283,17 @@ async def update_snack(
         request: SnackUpdateRequest,
         nutrition_service=Depends(get_nutrition_service)
 ):
-    """Update an existing snack recipe"""
     try:
         if request.snack_id not in snack_database:
             raise HTTPException(status_code=404, detail="Snack not found")
 
         snack = snack_database[request.snack_id]
 
-        # Update fields
         for field, value in request.updates.items():
             if field in ["id", "created_date", "created_by"]:
                 continue  # Don't allow updating these fields
             snack[field] = value
 
-        # Recalculate nutrition if ingredients changed
         if "ingredients" in request.updates:
             nutrition_analysis = nutrition_service.calculate_snack_nutrition(
                 snack["ingredients"]
@@ -333,7 +301,6 @@ async def update_snack(
             snack["nutrition_analysis"] = nutrition_analysis
             snack["health_score"] = nutrition_analysis["health_score"]
 
-        # Update metadata
         snack["updated_date"] = datetime.now().isoformat()
         snack["version"] = snack.get("version", 1) + 1
 
@@ -355,26 +322,21 @@ async def delete_snack(
         snack_id: str,
         user_id: Optional[str] = Query(None, description="User ID for authorization")
 ):
-    """Delete a snack recipe"""
     try:
         if snack_id not in snack_database:
             raise HTTPException(status_code=404, detail="Snack not found")
 
         snack = snack_database[snack_id]
 
-        # Check authorization (simplified)
         if user_id and snack.get("created_by") != user_id:
             raise HTTPException(status_code=403, detail="Not authorized to delete this snack")
 
-        # Remove from database
         deleted_snack = snack_database.pop(snack_id)
 
-        # Remove from all user favorites
         for user_favs in user_favorites.values():
             if snack_id in user_favs:
                 user_favs.remove(snack_id)
 
-        # Remove ratings
         snack_ratings.pop(snack_id, None)
 
         return {
@@ -392,12 +354,10 @@ async def delete_snack(
 
 @router.post("/rate")
 async def rate_snack(request: SnackRatingRequest):
-    """Rate and review a snack"""
     try:
         if request.snack_id not in snack_database:
             raise HTTPException(status_code=404, detail="Snack not found")
 
-        # Store rating
         if request.snack_id not in snack_ratings:
             snack_ratings[request.snack_id] = []
 
@@ -408,7 +368,6 @@ async def rate_snack(request: SnackRatingRequest):
             "created_date": datetime.now().isoformat()
         }
 
-        # Update existing rating or add new one
         user_rating_index = None
         for i, rating in enumerate(snack_ratings[request.snack_id]):
             if rating.get("user_id") == request.user_id:
@@ -420,7 +379,6 @@ async def rate_snack(request: SnackRatingRequest):
         else:
             snack_ratings[request.snack_id].append(rating_record)
 
-        # Update snack's average rating
         all_ratings = [r["rating"] for r in snack_ratings[request.snack_id]]
         snack_database[request.snack_id]["rating_average"] = sum(all_ratings) / len(all_ratings)
         snack_database[request.snack_id]["rating_count"] = len(all_ratings)
@@ -447,7 +405,6 @@ async def toggle_favorite(
         snack_id: str,
         user_id: str = Query(..., description="User ID")
 ):
-    """Add or remove snack from user's favorites"""
     try:
         if snack_id not in snack_database:
             raise HTTPException(status_code=404, detail="Snack not found")
@@ -486,7 +443,6 @@ async def get_user_favorites(
         user_id: str,
         include_nutrition: bool = Query(True, description="Include nutrition analysis")
 ):
-    """Get user's favorite snacks"""
     try:
         favorite_ids = user_favorites.get(user_id, [])
         favorite_snacks = []
@@ -517,16 +473,13 @@ async def get_trending_snacks(
         period_days: int = Query(7, ge=1, le=365, description="Period in days"),
         limit: int = Query(10, ge=1, le=50, description="Number of snacks to return")
 ):
-    """Get trending snacks based on recent activity"""
     try:
-        # Get snacks created in the period
         cutoff_date = datetime.now() - timedelta(days=period_days)
 
         trending_snacks = []
         for snack in snack_database.values():
             created_date = datetime.fromisoformat(snack["created_date"].replace('Z', '+00:00'))
             if created_date >= cutoff_date:
-                # Calculate trend score based on ratings, health score, and recency
                 trend_score = (
                         snack.get("rating_average", 0) * 20 +
                         snack.get("health_score", 0) * 0.5 +
@@ -536,7 +489,6 @@ async def get_trending_snacks(
                 snack_copy["trend_score"] = trend_score
                 trending_snacks.append(snack_copy)
 
-        # Sort by trend score
         trending_snacks.sort(key=lambda x: x["trend_score"], reverse=True)
         trending_snacks = trending_snacks[:limit]
 
@@ -561,18 +513,15 @@ async def duplicate_snack(
         user_id: Optional[str] = Query(None, description="User ID for the duplicate"),
         name_suffix: str = Query(" (Copy)", description="Suffix for duplicate name")
 ):
-    """Create a duplicate of an existing snack"""
     try:
         if snack_id not in snack_database:
             raise HTTPException(status_code=404, detail="Snack not found")
 
         original_snack = snack_database[snack_id]
 
-        # Create duplicate
         new_snack_id = str(uuid.uuid4())
         duplicate_snack = original_snack.copy()
 
-        # Update duplicate metadata
         duplicate_snack.update({
             "id": new_snack_id,
             "name": original_snack["name"] + name_suffix,
@@ -584,7 +533,6 @@ async def duplicate_snack(
             "rating_count": 0
         })
 
-        # Save duplicate
         snack_database[new_snack_id] = duplicate_snack
 
         return {
@@ -604,10 +552,8 @@ async def duplicate_snack(
         raise HTTPException(status_code=500, detail=f"Failed to duplicate snack: {str(e)}")
 
 
-# Helper functions
 
 def _get_user_rating(snack_id: str, user_id: str) -> Optional[Dict[str, Any]]:
-    """Get user's rating for a snack"""
     if snack_id not in snack_ratings:
         return None
 
@@ -619,7 +565,6 @@ def _get_user_rating(snack_id: str, user_id: str) -> Optional[Dict[str, Any]]:
 
 
 def _find_similar_snacks(target_snack: Dict[str, Any], limit: int = 5) -> List[Dict[str, Any]]:
-    """Find snacks similar to the target snack"""
     target_ingredients = set(ing["name"] for ing in target_snack["ingredients"])
     target_tags = set(target_snack.get("tags", []))
     target_health_score = target_snack.get("health_score", 0)
@@ -630,36 +575,29 @@ def _find_similar_snacks(target_snack: Dict[str, Any], limit: int = 5) -> List[D
         if snack_id == target_snack["id"]:
             continue
 
-        # Calculate similarity score
         snack_ingredients = set(ing["name"] for ing in snack["ingredients"])
         snack_tags = set(snack.get("tags", []))
 
-        # Ingredient similarity (Jaccard index)
         ingredient_similarity = len(target_ingredients & snack_ingredients) / len(
             target_ingredients | snack_ingredients) if target_ingredients | snack_ingredients else 0
 
-        # Tag similarity
         tag_similarity = len(target_tags & snack_tags) / len(
             target_tags | snack_tags) if target_tags | snack_tags else 0
 
-        # Health score similarity (normalized)
         health_diff = abs(target_health_score - snack.get("health_score", 0))
         health_similarity = max(0, 1 - (health_diff / 100))
 
-        # Combined similarity score
         similarity_score = (ingredient_similarity * 0.5 + tag_similarity * 0.3 + health_similarity * 0.2)
 
         snack_copy = snack.copy()
         snack_copy["similarity_score"] = similarity_score
         similar_snacks.append(snack_copy)
 
-    # Sort by similarity and return top results
     similar_snacks.sort(key=lambda x: x["similarity_score"], reverse=True)
     return similar_snacks[:limit]
 
 
 def _meets_dietary_restrictions(snack: Dict[str, Any], restrictions: List[str]) -> bool:
-    """Check if snack meets dietary restrictions"""
     nutrition_analysis = snack.get("nutrition_analysis", {})
     allergens = set(nutrition_analysis.get("allergens", []))
 
@@ -668,7 +606,6 @@ def _meets_dietary_restrictions(snack: Dict[str, Any], restrictions: List[str]) 
             if any(allergen in allergens for allergen in ["milk", "eggs", "honey"]):
                 return False
         elif restriction == "vegetarian":
-            # Most snacks are vegetarian by default in this context
             pass
         elif restriction == "gluten_free":
             if "gluten" in allergens:
@@ -685,12 +622,12 @@ def _meets_dietary_restrictions(snack: Dict[str, Any], restrictions: List[str]) 
         elif restriction == "keto":
             nutrition = nutrition_analysis.get("nutrition_per_100g", {})
             carbs = nutrition.get("carbohydrates_g", 0)
-            if carbs > 20:  # Simplified keto check
+            if carbs > 20:
                 return False
         elif restriction == "low_sugar":
             nutrition = nutrition_analysis.get("nutrition_per_100g", {})
             sugar = nutrition.get("sugars_g", 0)
-            if sugar > 15:  # Simplified low sugar check
+            if sugar > 15:
                 return False
 
     return True

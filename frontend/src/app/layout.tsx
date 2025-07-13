@@ -1,4 +1,3 @@
-// src/app/layout.tsx
 import './globals.css';
 import React from 'react';
 import { Inter } from 'next/font/google';

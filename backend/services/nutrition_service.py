@@ -13,7 +13,6 @@ class NutritionService:
         self.ingredient_database = self._load_ingredient_database()
 
     def _load_ingredient_database(self) -> Dict[str, Dict[str, Any]]:
-        """Load ingredient nutrition database"""
         try:
             with open("data/ingredients.json", "r") as f:
                 return json.load(f)
@@ -22,7 +21,6 @@ class NutritionService:
             return {}
 
     def calculate_snack_nutrition(self, ingredients: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Calculate complete nutrition for a snack recipe"""
         if not ingredients:
             return self._empty_nutrition()
 
@@ -42,7 +40,6 @@ class NutritionService:
             ingredient_data = self.ingredient_database[name]
             nutrition_per_100g = ingredient_data["nutrition"]
 
-            # Calculate nutrition for this amount
             multiplier = amount_g / 100.0
             ingredient_nutrition = {}
 
@@ -51,10 +48,8 @@ class NutritionService:
                 total_nutrition[nutrient] += contribution
                 ingredient_nutrition[nutrient] = contribution
 
-            # Add allergens
             allergens.update(ingredient_data.get("allergens", []))
 
-            # Store ingredient details
             ingredient_details.append({
                 "name": name,
                 "amount_g": amount_g,
@@ -65,7 +60,6 @@ class NutritionService:
 
             total_weight += amount_g
 
-        # Calculate per-serving and per-100g values
         nutrition_per_serving = total_nutrition.copy()
         nutrition_per_100g = {}
 
@@ -75,10 +69,8 @@ class NutritionService:
         else:
             nutrition_per_100g = total_nutrition.copy()
 
-        # Calculate health score
         health_analysis = self.health_scorer.predict_health_score(nutrition_per_100g)
 
-        # Calculate additional metrics
         macros = self._calculate_macros(nutrition_per_serving)
         glycemic_load = self._calculate_glycemic_load(ingredient_details, total_weight)
         sustainability_score = self._calculate_sustainability_score(ingredient_details)
@@ -100,7 +92,6 @@ class NutritionService:
         }
 
     def _initialize_nutrition_totals(self) -> Dict[str, float]:
-        """Initialize nutrition totals dictionary"""
         return {
             "calories_per_100g": 0.0,
             "protein_g": 0.0,
@@ -117,7 +108,6 @@ class NutritionService:
         }
 
     def _empty_nutrition(self) -> Dict[str, Any]:
-        """Return empty nutrition data"""
         return {
             "nutrition_per_serving": self._initialize_nutrition_totals(),
             "nutrition_per_100g": self._initialize_nutrition_totals(),
@@ -135,7 +125,6 @@ class NutritionService:
         }
 
     def _calculate_macros(self, nutrition: Dict[str, float]) -> Dict[str, float]:
-        """Calculate macronutrient percentages"""
         protein_calories = nutrition["protein_g"] * 4
         carb_calories = nutrition["carbohydrates_g"] * 4
         fat_calories = nutrition["total_fat_g"] * 9
@@ -151,22 +140,19 @@ class NutritionService:
         }
 
     def _calculate_glycemic_load(self, ingredients: List[Dict[str, Any]], total_weight: float) -> float:
-        """Calculate estimated glycemic load"""
         total_gl = 0
 
         for ingredient in ingredients:
             carbs = ingredient["nutrition"].get("carbohydrates_g", 0)
             properties = ingredient.get("properties", {})
-            gi = properties.get("glycemic_index", 50)  # Default moderate GI
+            gi = properties.get("glycemic_index", 50)
 
-            # Glycemic Load = (GI × Carbs) / 100
             gl = (gi * carbs) / 100
             total_gl += gl
 
         return round(total_gl, 1)
 
     def _calculate_sustainability_score(self, ingredients: List[Dict[str, Any]]) -> float:
-        """Calculate weighted sustainability score"""
         if not ingredients:
             return 0
 
@@ -184,17 +170,14 @@ class NutritionService:
         return round((total_score / max(total_weight, 1)) * 100, 1)
 
     def _generate_nutritional_highlights(self, nutrition: Dict[str, float], ingredients: List[Dict[str, Any]]) -> List[str]:
-        """Generate key nutritional highlights"""
         highlights = []
 
-        # Protein analysis
         protein = nutrition.get("protein_g", 0)
         if protein > 20:
             highlights.append(f"Excellent protein source ({protein:.1f}g per 100g)")
         elif protein > 10:
             highlights.append(f"Good protein content ({protein:.1f}g per 100g)")
 
-        # Fiber analysis
         fiber = nutrition.get("fiber_g", 0)
         if fiber > 15:
             highlights.append(f"Very high fiber content ({fiber:.1f}g per 100g)")
@@ -203,28 +186,24 @@ class NutritionService:
         elif fiber > 3:
             highlights.append(f"Good fiber source ({fiber:.1f}g per 100g)")
 
-        # Sugar analysis
         sugar = nutrition.get("sugars_g", 0)
         if sugar < 5:
             highlights.append("Low sugar content")
         elif sugar > 25:
             highlights.append(f"High sugar content ({sugar:.1f}g per 100g)")
 
-        # Antioxidant analysis
         antioxidant_ingredients = [ing for ing in ingredients
                                    if ing.get("properties", {}).get("antioxidant_score", 0) > 70]
         if antioxidant_ingredients:
             names = [ing["name"] for ing in antioxidant_ingredients]
             highlights.append(f"Rich in antioxidants from {', '.join(names)}")
 
-        # Healthy fats
         healthy_fat_ingredients = [ing for ing in ingredients
                                    if ing["category"] in ["nuts_seeds"] and
                                    ing.get("properties", {}).get("processing_level", 5) <= 2]
         if healthy_fat_ingredients:
             highlights.append("Contains healthy unsaturated fats")
 
-        # Micronutrients
         iron = nutrition.get("iron_mg", 0)
         calcium = nutrition.get("calcium_mg", 0)
         potassium = nutrition.get("potassium_mg", 0)
@@ -236,55 +215,46 @@ class NutritionService:
         if potassium > 500:
             highlights.append(f"High in potassium ({potassium:.0f}mg per 100g)")
 
-        return highlights[:5]  # Limit to top 5 highlights
+        return highlights[:5]
 
     def _generate_recommendations(self, nutrition: Dict[str, float], ingredients: List[Dict[str, Any]]) -> List[str]:
-        """Generate improvement recommendations"""
         recommendations = []
 
-        # Protein recommendations
         protein = nutrition.get("protein_g", 0)
         if protein < 8:
             recommendations.append("Consider adding protein powder, nuts, or seeds to increase protein content")
 
-        # Fiber recommendations
         fiber = nutrition.get("fiber_g", 0)
         if fiber < 3:
             recommendations.append("Add more fiber with chia seeds, flax seeds, or oats")
 
-        # Sugar recommendations
         sugar = nutrition.get("sugars_g", 0)
         if sugar > 20:
             recommendations.append("Consider reducing added sweeteners or using lower-sugar alternatives like stevia")
 
-        # Sodium recommendations
         sodium = nutrition.get("sodium_mg", 0)
         if sodium > 400:
             recommendations.append("Consider reducing sodium content for better heart health")
 
-        # Processing level recommendations
         high_processing = [ing for ing in ingredients
                            if ing.get("properties", {}).get("processing_level", 0) > 3]
         if len(high_processing) > len(ingredients) * 0.5:
             recommendations.append("Try incorporating more whole food ingredients to reduce processing")
 
-        # Antioxidant recommendations
         antioxidant_total = sum(ing.get("properties", {}).get("antioxidant_score", 0)
                                 for ing in ingredients) / max(len(ingredients), 1)
         if antioxidant_total < 50:
             recommendations.append("Add berries, dark chocolate, or cinnamon to boost antioxidant content")
 
-        # Balance recommendations
         macros = self._calculate_macros(nutrition)
         if macros["fat_percent"] > 60:
             recommendations.append("Consider adding more protein or complex carbs to balance macronutrients")
         elif macros["carb_percent"] > 70:
             recommendations.append("Add healthy fats or protein to slow sugar absorption")
 
-        return recommendations[:4]  # Limit to top 4 recommendations
+        return recommendations[:4]
 
     def analyze_ingredient_contribution(self, ingredients: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Analyze each ingredient's contribution to overall nutrition"""
         total_nutrition = self.calculate_snack_nutrition(ingredients)
         total_calories = total_nutrition["nutrition_per_serving"]["calories_per_100g"]
 
@@ -306,7 +276,6 @@ class NutritionService:
 
             contributions.append(contribution)
 
-        # Sort by calorie contribution
         contributions.sort(key=lambda x: x["calorie_contribution_percent"], reverse=True)
 
         return {
@@ -316,7 +285,6 @@ class NutritionService:
         }
 
     def _get_ingredient_benefits(self, ingredient_name: str) -> List[str]:
-        """Get key health benefits of an ingredient"""
         if ingredient_name not in self.ingredient_database:
             return []
 
@@ -326,28 +294,22 @@ class NutritionService:
 
         benefits = []
 
-        # High protein
         if nutrition["protein_g"] > 15:
             benefits.append("High protein")
 
-        # High fiber
         if nutrition["fiber_g"] > 10:
             benefits.append("High fiber")
 
-        # Antioxidants
         if properties.get("antioxidant_score", 0) > 70:
             benefits.append("Rich antioxidants")
 
-        # Healthy fats
         if (nutrition["total_fat_g"] > 10 and
                 nutrition["saturated_fat_g"] / max(nutrition["total_fat_g"], 1) < 0.3):
             benefits.append("Healthy fats")
 
-        # Low glycemic
         if properties.get("glycemic_index", 100) < 35:
             benefits.append("Low glycemic")
 
-        # Micronutrients
         if nutrition["iron_mg"] > 3:
             benefits.append("Iron source")
         if nutrition["calcium_mg"] > 100:
@@ -355,11 +317,10 @@ class NutritionService:
         if nutrition["potassium_mg"] > 400:
             benefits.append("Potassium source")
 
-        return benefits[:3]  # Limit to top 3 benefits
+        return benefits[:3]
 
     def suggest_nutritional_improvements(self, current_nutrition: Dict[str, Any],
                                          health_goals: List[str]) -> Dict[str, Any]:
-        """Suggest specific improvements based on health goals"""
         suggestions = {
             "ingredient_additions": [],
             "ingredient_substitutions": [],
@@ -421,11 +382,9 @@ class NutritionService:
                         "Mix in BCAAs for muscle recovery"
                     ])
 
-        # Remove duplicates and limit suggestions
         for category in suggestions:
             suggestions[category] = list(dict.fromkeys(suggestions[category]))[:3]
 
-        # Add general tips based on current nutrition
         if current_score < 60:
             suggestions["general_tips"].extend([
                 "Focus on whole food ingredients",
@@ -437,7 +396,6 @@ class NutritionService:
 
     def compare_snack_versions(self, version_a: List[Dict[str, Any]],
                                version_b: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Compare two versions of a snack recipe"""
         nutrition_a = self.calculate_snack_nutrition(version_a)
         nutrition_b = self.calculate_snack_nutrition(version_b)
 
@@ -449,7 +407,6 @@ class NutritionService:
             "overall_recommendation": ""
         }
 
-        # Compare key metrics
         metrics = [
             "health_score", "protein_g", "fiber_g", "sugars_g",
             "calories_per_100g", "sustainability_score"
@@ -473,13 +430,11 @@ class NutritionService:
                 "version_b_value": round(val_b, 2)
             }
 
-            # Determine winner (higher is better except for sugars and calories)
             if metric in ["sugars_g", "calories_per_100g"]:
                 comparison["winner_by_metric"][metric] = "A" if val_a < val_b else "B"
             else:
                 comparison["winner_by_metric"][metric] = "A" if val_a > val_b else "B"
 
-        # Overall recommendation
         a_wins = sum(1 for winner in comparison["winner_by_metric"].values() if winner == "A")
         b_wins = sum(1 for winner in comparison["winner_by_metric"].values() if winner == "B")
 

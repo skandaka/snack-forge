@@ -1,4 +1,3 @@
-# backend/services/ai_service.py
 import logging
 from typing import Dict, List, Any, Optional
 import json
@@ -14,7 +13,6 @@ class AIService:
         self.nutrition_service = nutrition_service
         self.embeddings = embeddings
 
-        # Check if OpenAI is available
         self.openai_available = False
         if openai_api_key:
             try:
@@ -34,20 +32,15 @@ class AIService:
 
     async def generate_snack_recommendation(self, user_preferences: Dict[str, Any],
                                             health_goals: List[str]) -> Dict[str, Any]:
-        """Generate a complete snack recommendation based on user preferences"""
 
         try:
             if self.openai_available:
-                # Try AI-powered recommendation
                 recommendation = await self._ai_recommendation(user_preferences, health_goals)
             else:
-                # Use fallback recommendation
                 recommendation = self._fallback_recommendation(user_preferences, health_goals)
 
-            # Enhance recommendation with nutritional analysis if ingredients are provided
             if "ingredients" in recommendation and recommendation["ingredients"]:
                 try:
-                    # Format ingredients properly
                     formatted_ingredients = []
                     for ing in recommendation["ingredients"]:
                         if isinstance(ing, dict) and "name" in ing and "amount_g" in ing:
@@ -64,7 +57,6 @@ class AIService:
                         recommendation["health_score"] = nutrition_analysis["health_score"]
                 except Exception as e:
                     logger.error(f"Nutrition analysis failed for recommendation: {str(e)}")
-                    # Continue without nutrition analysis
 
             return recommendation
 
@@ -74,10 +66,8 @@ class AIService:
 
     async def improve_snack_recipe(self, current_recipe: List[Dict[str, Any]],
                                    improvement_goals: List[str]) -> Dict[str, Any]:
-        """Suggest improvements to an existing snack recipe"""
 
         try:
-            # Validate and format recipe
             if not current_recipe:
                 raise ValueError("Current recipe cannot be empty")
 
@@ -92,16 +82,13 @@ class AIService:
             if not formatted_recipe:
                 raise ValueError("No valid ingredients found in recipe")
 
-            # Analyze current recipe
             current_nutrition = self.nutrition_service.calculate_snack_nutrition(formatted_recipe)
 
-            # Generate improvements
             if self.openai_available:
                 improvements = await self._ai_improvements(formatted_recipe, current_nutrition, improvement_goals)
             else:
                 improvements = self._fallback_improvements(current_nutrition, improvement_goals)
 
-            # Add detailed nutritional suggestions
             nutritional_suggestions = self.nutrition_service.suggest_nutritional_improvements(
                 current_nutrition, improvement_goals
             )
@@ -117,7 +104,6 @@ class AIService:
 
     async def chat_about_nutrition(self, user_message: str,
                                    current_snack_context: Optional[Dict[str, Any]] = None) -> str:
-        """Handle conversational questions about nutrition and snacks"""
 
         try:
             if not user_message or not user_message.strip():
@@ -128,7 +114,6 @@ class AIService:
             else:
                 response = self._fallback_chat_response(user_message)
 
-            # Update conversation history
             self._update_conversation_history(user_message, response)
             return response
 
@@ -139,7 +124,6 @@ class AIService:
     async def suggest_ingredient_substitutions(self, ingredient_name: str,
                                                dietary_restrictions: List[str],
                                                recipe_context: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Suggest intelligent ingredient substitutions"""
 
         try:
             if not ingredient_name or not ingredient_name.strip():
@@ -147,7 +131,6 @@ class AIService:
 
             ingredient_name = ingredient_name.strip()
 
-            # Get similarity-based suggestions from embeddings if available
             embedding_suggestions = []
             if self.embeddings:
                 try:
@@ -157,7 +140,6 @@ class AIService:
                 except Exception as e:
                     logger.error(f"Embeddings substitution failed: {str(e)}")
 
-            # Enhance with AI reasoning if available
             if self.openai_available and embedding_suggestions:
                 try:
                     enhanced_suggestions = await self._ai_substitutions(
@@ -186,7 +168,6 @@ class AIService:
             }
 
     async def explain_health_score(self, nutrition_data: Dict[str, Any]) -> str:
-        """Provide detailed explanation of health score calculation"""
 
         try:
             health_score = nutrition_data.get("health_score", 0)
@@ -206,48 +187,31 @@ class AIService:
                 nutrition_data.get("nutrition_per_100g", {})
             )
 
-    # AI-powered methods (when OpenAI is available)
 
     async def _ai_recommendation(self, preferences: Dict[str, Any], goals: List[str]) -> Dict[str, Any]:
-        """Generate AI-powered recommendation"""
-        # Placeholder for OpenAI integration
-        # For now, return fallback
         return self._fallback_recommendation(preferences, goals)
 
     async def _ai_improvements(self, recipe: List[Dict[str, Any]], nutrition: Dict[str, Any],
                                goals: List[str]) -> Dict[str, Any]:
-        """Generate AI-powered improvements"""
-        # Placeholder for OpenAI integration
         return self._fallback_improvements(nutrition, goals)
 
     async def _ai_chat(self, message: str, context: Optional[Dict[str, Any]]) -> str:
-        """Generate AI-powered chat response"""
-        # Placeholder for OpenAI integration
         return self._fallback_chat_response(message)
 
     async def _ai_substitutions(self, ingredient: str, suggestions: List[Dict[str, Any]],
                                 restrictions: List[str], context: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Enhance substitutions with AI analysis"""
-        # Placeholder for OpenAI integration
         return suggestions
 
     async def _ai_health_explanation(self, score: int, nutrition: Dict[str, float]) -> str:
-        """Generate AI-powered health explanation"""
-        # Placeholder for OpenAI integration
         return self._fallback_health_explanation(score, nutrition)
 
-    # Fallback methods (rule-based responses)
 
     def _fallback_recommendation(self, preferences: Dict[str, Any], goals: List[str]) -> Dict[str, Any]:
-        """Generate recommendation without AI"""
-
         base_ingredients = []
 
-        # Start with a base
         base_ingredients.append({"name": "oats", "amount_g": 40})
         base_ingredients.append({"name": "almonds", "amount_g": 30})
 
-        # Add based on goals
         if "increase_protein" in goals:
             base_ingredients.append({"name": "protein_powder_plant", "amount_g": 25})
 
@@ -263,12 +227,10 @@ class AIService:
             base_ingredients.append({"name": "blueberries_dried", "amount_g": 20})
 
         if "keto_friendly" in goals:
-            # Remove high-carb ingredients
             base_ingredients = [ing for ing in base_ingredients if ing["name"] not in ["oats", "dates"]]
             base_ingredients.append({"name": "coconut_flakes", "amount_g": 25})
             base_ingredients.append({"name": "cashews", "amount_g": 35})
 
-        # Add sweetener if chocolate lovers or sweet preference
         if preferences.get("flavors") and "chocolate" in preferences.get("flavors", []):
             base_ingredients.append({"name": "dark_chocolate_70", "amount_g": 15})
         elif preferences.get("flavors") and "sweet" in preferences.get("flavors", []):
@@ -291,7 +253,6 @@ class AIService:
         }
 
     def _fallback_improvements(self, nutrition: Dict[str, Any], goals: List[str]) -> Dict[str, Any]:
-        """Generate improvements without AI"""
 
         suggestions = []
         nutrition_per_100g = nutrition.get("nutrition_per_100g", {})
@@ -348,8 +309,6 @@ class AIService:
         }
 
     def _fallback_chat_response(self, user_message: str) -> str:
-        """Generate chat response without AI"""
-
         message_lower = user_message.lower()
 
         if any(word in message_lower for word in ["protein", "muscle", "workout"]):
@@ -383,9 +342,6 @@ class AIService:
             return "That's a great nutrition question! I'd recommend focusing on whole food ingredients and balanced macronutrients for the healthiest snacks. What specific aspect of nutrition would you like to explore further?"
 
     def _fallback_substitutions(self, ingredient_name: str) -> List[Dict[str, Any]]:
-        """Generate fallback substitution suggestions"""
-
-        # Simple substitution mappings
         substitution_map = {
             "almonds": [
                 {"name": "walnuts", "reason": "Similar healthy fats and protein"},
@@ -461,12 +417,11 @@ class AIService:
 
         suggestions = substitution_map.get(ingredient_name, [])
 
-        # Add similarity scores and format properly
         formatted_suggestions = []
         for i, sub in enumerate(suggestions):
             formatted_suggestions.append({
                 "name": sub["name"],
-                "similarity": 0.8 - (i * 0.1),  # Decreasing similarity
+                "similarity": 0.8 - (i * 0.1),
                 "reason": sub["reason"],
                 "nutrition_comparison": {
                     "protein_g": "similar",
@@ -478,8 +433,6 @@ class AIService:
         return formatted_suggestions
 
     def _fallback_health_explanation(self, health_score: int, nutrition: Dict[str, float]) -> str:
-        """Generate health score explanation without AI"""
-
         protein = nutrition.get("protein_g", 0)
         fiber = nutrition.get("fiber_g", 0)
         sugar = nutrition.get("sugars_g", 0)
@@ -487,7 +440,6 @@ class AIService:
 
         explanation_parts = []
 
-        # Overall assessment
         if health_score >= 80:
             explanation_parts.append("This is an excellent health score indicating a very nutritious snack.")
         elif health_score >= 60:
@@ -497,7 +449,6 @@ class AIService:
         else:
             explanation_parts.append("This score suggests significant nutritional improvements are needed.")
 
-        # Specific nutritional factors
         if protein > 15:
             explanation_parts.append("The high protein content significantly boosts the score.")
         elif protein < 5:
@@ -518,10 +469,8 @@ class AIService:
 
         return " ".join(explanation_parts)
 
-    # Helper methods
 
     def _generate_benefits_from_goals(self, goals: List[str]) -> List[str]:
-        """Generate benefit statements from health goals"""
         benefits = []
 
         goal_benefits = {
@@ -540,14 +489,12 @@ class AIService:
             if goal in goal_benefits:
                 benefits.append(goal_benefits[goal])
 
-        # Add default benefits if none from goals
         if not benefits:
             benefits = ["Natural ingredients", "Balanced nutrition", "Sustained energy"]
 
         return benefits[:4]  # Limit to 4 benefits
 
     def _generate_substitution_tips(self, original: str, suggestions: List[Dict[str, Any]]) -> List[str]:
-        """Generate practical substitution tips"""
 
         tips = []
 
@@ -584,7 +531,6 @@ class AIService:
         return tips[:3]  # Limit to 3 tips
 
     def _update_conversation_history(self, user_message: str, ai_response: str):
-        """Update conversation history for context"""
         self.conversation_history.append({
             "user": user_message,
             "ai": ai_response,

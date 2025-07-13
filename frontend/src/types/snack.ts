@@ -220,6 +220,7 @@ export interface UIState {
     showNutritionPanel: boolean;
     showAICoach: boolean;
     showIngredientLibrary: boolean;
+    showTimeline: boolean; // <-- FIXED: Property is now defined
     isLoading: boolean;
     error: string | null;
     activeTab: 'build' | 'analyze' | 'improve' | 'variations';
@@ -290,21 +291,3 @@ export interface AnimationState {
     animationType: 'ingredient-add' | 'ingredient-remove' | 'rotation' | 'transition';
     progress: number;
 }
-
-export interface ParticleEffect {
-    type: 'add-ingredient' | 'health-boost' | 'mixing';
-    position: [number, number, number];
-    particles: Array<{
-        position: [number, number, number];
-        velocity: [number, number, number];
-        life: number;
-        color: string;
-    }>;
-}
-
-// Export utility types
-export type HealthScoreRange = 'excellent' | 'good' | 'moderate' | 'poor';
-export type DifficultyLevel = 'easy' | 'medium' | 'hard';
-export type SnackCategory = 'energy' | 'protein' | 'healthy' | 'sweet' | 'savory';
-export type PreparationMethod = 'no-bake' | 'baked' | 'frozen' | 'dehydrated';
-export type TextureType = 'crunchy' | 'chewy' | 'creamy' | 'mixed';

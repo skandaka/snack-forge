@@ -39,18 +39,14 @@ async def calculate_nutrition(
         request: NutritionCalculationRequest,
         nutrition_service=Depends(get_nutrition_service)
 ):
-    """Calculate complete nutrition analysis for a snack recipe"""
     try:
-        # Convert pydantic models to dictionaries
         ingredients_dict = [
             {"name": ing.name, "amount_g": ing.amount_g}
             for ing in request.ingredients
         ]
 
-        # Calculate nutrition
         nutrition_analysis = nutrition_service.calculate_snack_nutrition(ingredients_dict)
 
-        # Add serving size calculation if requested
         if request.serving_size_g:
             serving_multiplier = request.serving_size_g / nutrition_analysis["total_weight_g"]
             nutrition_per_serving = {}
@@ -79,9 +75,7 @@ async def compare_recipes(
         request: NutritionComparisonRequest,
         nutrition_service=Depends(get_nutrition_service)
 ):
-    """Compare nutrition between two snack recipes"""
     try:
-        # Convert to dictionaries
         recipe_a_dict = [
             {"name": ing.name, "amount_g": ing.amount_g}
             for ing in request.recipe_a
@@ -91,10 +85,8 @@ async def compare_recipes(
             for ing in request.recipe_b
         ]
 
-        # Perform comparison
         comparison = nutrition_service.compare_snack_versions(recipe_a_dict, recipe_b_dict)
 
-        # Add custom names
         comparison["recipe_names"] = {
             "recipe_a": request.comparison_name_a,
             "recipe_b": request.comparison_name_b
@@ -116,7 +108,6 @@ async def analyze_ingredient_contribution(
         request: IngredientContributionRequest,
         nutrition_service=Depends(get_nutrition_service)
 ):
-    """Analyze each ingredient's contribution to overall nutrition"""
     try:
         ingredients_dict = [
             {"name": ing.name, "amount_g": ing.amount_g}
@@ -144,12 +135,10 @@ async def explain_health_score(
         sugar: Optional[float] = None,
         calories: Optional[float] = None
 ):
-    """Get explanation for a health score"""
     try:
         if not 0 <= score <= 100:
             raise HTTPException(status_code=400, detail="Health score must be between 0 and 100")
 
-        # Create mock nutrition data for explanation
         nutrition_data = {
             "protein_g": protein or 0,
             "fiber_g": fiber or 0,
@@ -177,7 +166,6 @@ async def explain_health_score(
 
 
 def generate_score_explanation(score: int, nutrition: Dict[str, float]) -> str:
-    """Generate health score explanation"""
 
     explanations = []
 
@@ -190,7 +178,6 @@ def generate_score_explanation(score: int, nutrition: Dict[str, float]) -> str:
     else:
         explanations.append("This score suggests significant nutritional improvements are needed.")
 
-    # Add specific nutritional factors
     protein = nutrition.get("protein_g", 0)
     fiber = nutrition.get("fiber_g", 0)
     sugar = nutrition.get("sugars_g", 0)
@@ -215,7 +202,6 @@ def generate_score_explanation(score: int, nutrition: Dict[str, float]) -> str:
 
 @router.get("/targets")
 async def get_nutrition_targets():
-    """Get recommended nutrition targets for healthy snacks"""
     return {
         "success": True,
         "data": {
@@ -245,7 +231,6 @@ async def get_nutrition_targets():
 
 @router.get("/nutrients/info/{nutrient}")
 async def get_nutrient_info(nutrient: str):
-    """Get detailed information about a specific nutrient"""
 
     nutrient_info = {
         "protein": {

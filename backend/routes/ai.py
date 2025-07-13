@@ -1,4 +1,3 @@
-# backend/routes/ai.py
 from fastapi import APIRouter, HTTPException, Depends, Request
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
@@ -61,22 +60,18 @@ async def generate_snack_recommendation(
         request: SnackRecommendationRequest,
         ai_service=Depends(get_ai_service)
 ):
-    """Generate AI-powered snack recommendations based on user preferences"""
     try:
-        # Create safe preferences dict
         enhanced_preferences = {}
         if request.preferences:
             enhanced_preferences = dict(request.preferences)
         enhanced_preferences["dietary_restrictions"] = request.dietary_restrictions or []
 
-        # Generate recommendation with error handling
         try:
             recommendation = await ai_service.generate_snack_recommendation(
                 enhanced_preferences, request.health_goals
             )
         except Exception as e:
             logger.error(f"AI service error: {str(e)}")
-            # Return fallback recommendation
             recommendation = _create_fallback_recommendation(enhanced_preferences, request.health_goals)
 
         return {
@@ -100,13 +95,10 @@ async def improve_recipe(
         request: RecipeImprovementRequest,
         ai_service=Depends(get_ai_service)
 ):
-    """Get AI-powered suggestions to improve an existing recipe"""
     try:
-        # Validate recipe format
         if not request.current_recipe:
             raise HTTPException(status_code=400, detail="Current recipe is required")
 
-        # Ensure ingredients have proper format
         formatted_recipe = []
         for ingredient in request.current_recipe:
             if isinstance(ingredient, dict) and 'name' in ingredient and 'amount_g' in ingredient:
@@ -129,7 +121,6 @@ async def improve_recipe(
             logger.error(f"AI improvement error: {str(e)}")
             improvements = _create_fallback_improvements(request.improvement_goals)
 
-        # Add user preference considerations
         if request.user_preferences:
             improvements["preference_notes"] = _generate_preference_notes(
                 improvements, request.user_preferences
@@ -158,7 +149,6 @@ async def chat_with_nutritionist(
         request: ChatRequest,
         ai_service=Depends(get_ai_service)
 ):
-    """Chat with AI nutritionist about snacks and nutrition"""
     try:
         if not request.message or not request.message.strip():
             raise HTTPException(status_code=400, detail="Message cannot be empty")
@@ -197,12 +187,10 @@ async def suggest_substitutions(
         request: IngredientSubstitutionRequest,
         ai_service=Depends(get_ai_service)
 ):
-    """Get intelligent ingredient substitution suggestions"""
     try:
         if not request.ingredient_name or not request.ingredient_name.strip():
             raise HTTPException(status_code=400, detail="Ingredient name is required")
 
-        # Format recipe context properly
         formatted_context = []
         for item in request.recipe_context:
             if isinstance(item, dict) and 'name' in item:
@@ -221,7 +209,6 @@ async def suggest_substitutions(
             logger.error(f"AI substitution error: {str(e)}")
             substitutions = _create_fallback_substitutions(request.ingredient_name)
 
-        # Add contextual analysis if we have valid substitutions
         if substitutions and isinstance(substitutions, dict) and 'suggestions' in substitutions:
             substitutions["context_analysis"] = _analyze_substitution_context(
                 request.ingredient_name, formatted_context, request.substitution_reason
@@ -242,7 +229,6 @@ async def suggest_substitutions(
 
 @router.get("/goals")
 async def get_available_goals():
-    """Get list of available health and improvement goals"""
     return {
         "success": True,
         "data": {
@@ -306,14 +292,12 @@ async def get_available_goals():
 # Helper functions for fallback responses
 
 def _create_fallback_recommendation(preferences: Dict[str, Any], goals: List[str]) -> Dict[str, Any]:
-    """Create a fallback recommendation when AI is unavailable"""
     base_ingredients = [
         {"name": "oats", "amount_g": 40},
         {"name": "almonds", "amount_g": 30},
         {"name": "dates", "amount_g": 25}
     ]
 
-    # Add ingredients based on goals
     if "increase_protein" in goals:
         base_ingredients.append({"name": "protein_powder_plant", "amount_g": 20})
 
@@ -321,7 +305,6 @@ def _create_fallback_recommendation(preferences: Dict[str, Any], goals: List[str
         base_ingredients.append({"name": "blueberries_dried", "amount_g": 15})
 
     if "keto_friendly" in goals:
-        # Replace oats with more nuts
         base_ingredients = [ing for ing in base_ingredients if ing["name"] != "oats"]
         base_ingredients.append({"name": "coconut_flakes", "amount_g": 25})
 
@@ -342,7 +325,6 @@ def _create_fallback_recommendation(preferences: Dict[str, Any], goals: List[str
 
 
 def _create_fallback_improvements(goals: List[str]) -> Dict[str, Any]:
-    """Create fallback improvement suggestions"""
     suggestions = []
 
     if "increase_protein" in goals:
@@ -377,9 +359,7 @@ def _create_fallback_improvements(goals: List[str]) -> Dict[str, Any]:
 
 
 def _create_fallback_substitutions(ingredient_name: str) -> Dict[str, Any]:
-    """Create fallback substitution suggestions"""
 
-    # Simple substitution mappings
     substitution_map = {
         "almonds": ["walnuts", "cashews"],
         "walnuts": ["almonds", "cashews"],
@@ -421,7 +401,6 @@ def _create_fallback_substitutions(ingredient_name: str) -> Dict[str, Any]:
 
 
 def _create_fallback_chat_response(message: str) -> str:
-    """Create a fallback chat response"""
     message_lower = message.lower()
 
     if any(word in message_lower for word in ["protein", "muscle"]):
@@ -441,7 +420,6 @@ def _create_fallback_chat_response(message: str) -> str:
 
 
 def _generate_preference_notes(improvements: Dict[str, Any], preferences: Dict[str, Any]) -> List[str]:
-    """Generate notes about how improvements align with user preferences"""
     notes = []
 
     if not improvements or not preferences:
@@ -449,7 +427,6 @@ def _generate_preference_notes(improvements: Dict[str, Any], preferences: Dict[s
 
     favorite_flavors = preferences.get("flavors", [])
 
-    # Check if improvements align with preferences
     if "sweet" in favorite_flavors and any(
             "reduce" in str(change) for change in improvements.get("suggested_changes", [])):
         notes.append("Some changes may reduce sweetness - consider adding naturally sweet ingredients like dates")
@@ -461,7 +438,6 @@ def _generate_preference_notes(improvements: Dict[str, Any], preferences: Dict[s
 
 
 def _generate_implementation_tips(improvements: Dict[str, Any]) -> List[str]:
-    """Generate practical tips for implementing improvements"""
     tips = [
         "Make one change at a time to see how it affects taste and texture",
         "Start with smaller amounts of new ingredients and adjust to preference",
@@ -483,7 +459,6 @@ def _generate_implementation_tips(improvements: Dict[str, Any]) -> List[str]:
 
 
 def _generate_follow_up_suggestions(user_message: str, ai_response: str) -> List[str]:
-    """Generate follow-up question suggestions"""
     message_lower = user_message.lower()
 
     if "protein" in message_lower:
@@ -514,7 +489,6 @@ def _generate_follow_up_suggestions(user_message: str, ai_response: str) -> List
 
 def _analyze_substitution_context(ingredient: str, recipe: List[Dict[str, Any]], reason: Optional[str]) -> Dict[
     str, Any]:
-    """Analyze the context for ingredient substitution"""
 
     analysis = {
         "recipe_size": len(recipe),

@@ -28,7 +28,6 @@ import { useSnackStore } from '../../stores/snackStore';
 import { NutritionAnalysis, MacroBreakdown } from '../../types/snack';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Enhanced Health Score Display with animations
 interface HealthScoreDisplayProps {
     score: number;
     confidence: number;
@@ -179,7 +178,6 @@ const HealthScoreDisplay: React.FC<HealthScoreDisplayProps> = ({
     );
 };
 
-// Enhanced Macro Chart with 3D visualization
 interface MacroChartProps {
     macros: MacroBreakdown;
 }
@@ -214,7 +212,6 @@ const MacroChart: React.FC<MacroChartProps> = ({ macros }) => {
         }
     ];
 
-    // Calculate angles for pie chart
     const total = data.reduce((sum, item) => sum + item.value, 0);
     let currentAngle = 0;
     const segments = data.map(item => {
@@ -291,7 +288,6 @@ const MacroChart: React.FC<MacroChartProps> = ({ macros }) => {
                     ))}
                 </div>
 
-                {/* 3D Pie Chart Visualization */}
                 <div className="flex items-center justify-center">
                     <div className="relative w-48 h-48">
                         <svg className="w-full h-full transform -rotate-90" viewBox="0 0 200 200">
@@ -356,7 +352,6 @@ const MacroChart: React.FC<MacroChartProps> = ({ macros }) => {
                             })}
                         </svg>
 
-                        {/* Center content */}
                         <div className="absolute inset-0 flex items-center justify-center">
                             <div className="text-center bg-white rounded-full w-20 h-20 flex flex-col items-center justify-center shadow-lg">
                                 <div className="text-lg font-bold text-gray-900">
@@ -366,7 +361,6 @@ const MacroChart: React.FC<MacroChartProps> = ({ macros }) => {
                             </div>
                         </div>
 
-                        {/* Hover tooltip */}
                         <AnimatePresence>
                             {hoveredSegment && (
                                 <motion.div
@@ -383,7 +377,6 @@ const MacroChart: React.FC<MacroChartProps> = ({ macros }) => {
                 </div>
             </div>
 
-            {/* Quick insights */}
             <div className="mt-6 grid grid-cols-3 gap-4">
                 <div className="text-center p-3 bg-blue-50 rounded-xl">
                     <div className="text-2xl mb-1">💪</div>
@@ -405,7 +398,6 @@ const MacroChart: React.FC<MacroChartProps> = ({ macros }) => {
     );
 };
 
-// Enhanced Nutrient Bar with animations and better visuals
 interface NutrientBarProps {
     label: string;
     value: number;
@@ -495,7 +487,6 @@ const NutrientBar: React.FC<NutrientBarProps> = ({
                             </motion.div>
                         </div>
 
-                        {/* Target line */}
                         <div
                             className="absolute top-0 w-0.5 h-full bg-gray-400"
                             style={{ left: '100%' }}
@@ -545,7 +536,6 @@ const NutrientBar: React.FC<NutrientBarProps> = ({
     );
 };
 
-// Stats card component
 const StatsCard: React.FC<{
     icon: React.ReactNode;
     title: string;
@@ -586,7 +576,6 @@ const StatsCard: React.FC<{
     </motion.div>
 );
 
-// Main Nutrition Panel Component
 export default function NutritionPanel() {
     const { currentSnack, ui } = useSnackStore();
     const [activeTab, setActiveTab] = useState<'overview' | 'detailed' | 'goals'>('overview');
@@ -649,7 +638,6 @@ export default function NutritionPanel() {
 
     return (
         <div className="h-full bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col">
-            {/* Enhanced Header */}
             <div className="bg-white border-b border-gray-200 p-6">
                 <div className="flex items-center gap-3 mb-6">
                     <div className="p-2 bg-blue-100 rounded-xl">
@@ -661,7 +649,6 @@ export default function NutritionPanel() {
                     </div>
                 </div>
 
-                {/* Enhanced Tabs */}
                 <div className="flex space-x-1 bg-gray-100 p-1 rounded-xl">
                     {tabs.map((tab) => {
                         const Icon = tab.icon;
@@ -688,7 +675,6 @@ export default function NutritionPanel() {
                 </div>
             </div>
 
-            {/* Content */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 <AnimatePresence mode="wait">
                     {activeTab === 'overview' && (
@@ -699,14 +685,12 @@ export default function NutritionPanel() {
                             exit={{ opacity: 0, x: 20 }}
                             className="space-y-6"
                         >
-                            {/* Health Score */}
                             <HealthScoreDisplay
                                 score={nutrition.health_score}
                                 confidence={nutrition.health_confidence}
                                 explanation={nutrition.health_explanation}
                             />
 
-                            {/* Quick Stats Grid */}
                             <div className="grid grid-cols-2 gap-4">
                                 <StatsCard
                                     icon={<Zap />}
@@ -726,10 +710,8 @@ export default function NutritionPanel() {
                                 />
                             </div>
 
-                            {/* Macros Chart */}
                             <MacroChart macros={nutrition.macros} />
 
-                            {/* Allergens Alert */}
                             {nutrition.allergens.length > 0 && (
                                 <motion.div
                                     initial={{ opacity: 0, scale: 0.95 }}
@@ -755,7 +737,6 @@ export default function NutritionPanel() {
                                 </motion.div>
                             )}
 
-                            {/* Nutritional Highlights */}
                             {nutrition.nutritional_highlights.length > 0 && (
                                 <motion.div
                                     initial={{ opacity: 0, scale: 0.95 }}
@@ -793,7 +774,6 @@ export default function NutritionPanel() {
                             exit={{ opacity: 0, x: 20 }}
                             className="space-y-6"
                         >
-                            {/* Detailed Nutrients */}
                             <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg">
                                 <div className="flex items-center gap-3 mb-6">
                                     <div className="p-2 bg-purple-100 rounded-xl">
@@ -878,7 +858,6 @@ export default function NutritionPanel() {
                                 </div>
                             </div>
 
-                            {/* Ingredient Breakdown */}
                             <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg">
                                 <div className="flex items-center gap-3 mb-6">
                                     <div className="p-2 bg-indigo-100 rounded-xl">
@@ -950,7 +929,6 @@ export default function NutritionPanel() {
                                 </div>
                             </div>
 
-                            {/* Sustainability Score */}
                             <div className="bg-gradient-to-br from-green-50 to-emerald-100 rounded-2xl border border-green-200 p-6 shadow-lg">
                                 <div className="flex items-center gap-3 mb-4">
                                     <div className="p-2 bg-green-200 rounded-xl">
@@ -1015,7 +993,6 @@ export default function NutritionPanel() {
                             exit={{ opacity: 0, x: 20 }}
                             className="space-y-6"
                         >
-                            {/* Recommendations */}
                             {nutrition.recommendations.length > 0 && (
                                 <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border-l-4 border-blue-400 rounded-xl p-6">
                                     <div className="flex items-center gap-3 mb-4">
@@ -1041,7 +1018,6 @@ export default function NutritionPanel() {
                                 </div>
                             )}
 
-                            {/* Health Goals Progress */}
                             <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg">
                                 <div className="flex items-center gap-3 mb-6">
                                     <div className="p-2 bg-purple-100 rounded-xl">
@@ -1054,7 +1030,6 @@ export default function NutritionPanel() {
                                 </div>
 
                                 <div className="space-y-6">
-                                    {/* High Protein Goal */}
                                     <div className="p-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl">
                                         <div className="flex justify-between items-center mb-3">
                                             <div className="flex items-center gap-3">
@@ -1093,7 +1068,6 @@ export default function NutritionPanel() {
                                         </p>
                                     </div>
 
-                                    {/* Low Sugar Goal */}
                                     <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl">
                                         <div className="flex justify-between items-center mb-3">
                                             <div className="flex items-center gap-3">
@@ -1132,7 +1106,6 @@ export default function NutritionPanel() {
                                         </p>
                                     </div>
 
-                                    {/* High Fiber Goal */}
                                     <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl">
                                         <div className="flex justify-between items-center mb-3">
                                             <div className="flex items-center gap-3">
@@ -1171,7 +1144,6 @@ export default function NutritionPanel() {
                                         </p>
                                     </div>
 
-                                    {/* Overall Health Score Goal */}
                                     <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl">
                                         <div className="flex justify-between items-center mb-3">
                                             <div className="flex items-center gap-3">
@@ -1212,7 +1184,6 @@ export default function NutritionPanel() {
                                 </div>
                             </div>
 
-                            {/* Goal Achievement Summary */}
                             <div className="bg-gradient-to-br from-indigo-50 to-purple-100 rounded-2xl border border-indigo-200 p-6 shadow-lg">
                                 <div className="flex items-center gap-3 mb-4">
                                     <div className="p-2 bg-indigo-200 rounded-xl">
