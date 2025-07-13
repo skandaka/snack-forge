@@ -2,524 +2,583 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useSnackStore } from '../stores/snackStore';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+    Menu,
+    Settings,
+    Save,
+    Share2,
+    Download,
+    Maximize2,
+    Minimize2,
+    RotateCcw,
+    Play,
+    Pause,
+    Volume2,
+    VolumeX,
+    Layers,
+    Grid3X3,
+    Eye,
+    Lightbulb,
+    Zap
+} from 'lucide-react';
+
+import SnackCanvas from '../components/3d/SnackCanvas';
 import IngredientLibrary from '../components/ui/IngredientLibrary';
 import NutritionPanel from '../components/ui/NutritionPanel';
 import AICoach from '../components/ui/AICoach';
-import SnackCanvas from '../components/3d/SnackCanvas';
-import Header from '../components/layout/Header';
-import {
-    PanelLeftOpen,
-    PanelLeftClose,
-    PanelRightOpen,
-    PanelRightClose,
-    Activity,
-    Bot,
-    Library,
-    AlertCircle,
-    CheckCircle,
-    Info,
-    X
-} from 'lucide-react';
+import { useSnackStore } from '../stores/snackStore';
 
-// Notification Component
-interface NotificationProps {
-    notification: {
-        id: string;
-        type: 'success' | 'error' | 'warning' | 'info';
-        message: string;
-    };
-    onDismiss: (id: string) => void;
-}
+// Professional Header Component
+const Header: React.FC = () => {
+    const { currentSnack, saveSnack, ui } = useSnackStore();
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [showSaveDialog, setShowSaveDialog] = useState(false);
 
-const Notification: React.FC<NotificationProps> = ({ notification, onDismiss }) => {
-    const getIcon = () => {
-        switch (notification.type) {
-            case 'success': return <CheckCircle className="w-5 h-5" />;
-            case 'error': return <AlertCircle className="w-5 h-5" />;
-            case 'warning': return <AlertCircle className="w-5 h-5" />;
-            case 'info': return <Info className="w-5 h-5" />;
-        }
+    const handleSave = () => {
+        setShowSaveDialog(true);
     };
 
-    const getColors = () => {
-        switch (notification.type) {
-            case 'success': return 'bg-green-50 border-green-200 text-green-800';
-            case 'error': return 'bg-red-50 border-red-200 text-red-800';
-            case 'warning': return 'bg-yellow-50 border-yellow-200 text-yellow-800';
-            case 'info': return 'bg-blue-50 border-blue-200 text-blue-800';
-        }
+    const handleExport = () => {
+        // Export functionality
+        console.log('Exporting snack...');
     };
 
-    return (
-        <div className={`flex items-center gap-3 p-4 border rounded-lg shadow-sm ${getColors()}`}>
-            {getIcon()}
-            <span className="flex-1 text-sm font-medium">{notification.message}</span>
-            <button
-                onClick={() => onDismiss(notification.id)}
-                className="opacity-70 hover:opacity-100 transition-opacity"
-            >
-                <X className="w-4 h-4" />
-            </button>
-        </div>
-    );
-};
+    const handleShare = () => {
+        // Share functionality
+        console.log('Sharing snack...');
+    };
 
-// Panel Toggle Button Component
-interface PanelToggleProps {
-    isOpen: boolean;
-    onToggle: () => void;
-    side: 'left' | 'right';
-    icon: React.ReactNode;
-    label: string;
-}
-
-const PanelToggle: React.FC<PanelToggleProps> = ({ isOpen, onToggle, side, icon, label }) => {
-    const OpenIcon = side === 'left' ? PanelLeftOpen : PanelRightOpen;
-    const CloseIcon = side === 'left' ? PanelLeftClose : PanelRightClose;
-    const Icon = isOpen ? CloseIcon : OpenIcon;
-
-    return (
-        <button
-            onClick={onToggle}
-            className={`flex items-center gap-2 px-3 py-2 bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200 ${
-                side === 'left' ? 'flex-row' : 'flex-row-reverse'
-            }`}
-            title={`${isOpen ? 'Hide' : 'Show'} ${label}`}
-        >
-            {icon}
-            <span className="text-sm font-medium text-gray-700">{label}</span>
-            <Icon className="w-4 h-4 text-gray-500" />
-        </button>
-    );
-};
-
-// Loading Overlay Component
-const LoadingOverlay: React.FC = () => (
-    <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
-        <div className="flex flex-col items-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-3"></div>
-            <p className="text-gray-600 text-sm">Processing...</p>
-        </div>
-    </div>
-);
-
-// Tutorial Overlay Component
-const TutorialOverlay: React.FC = () => {
-    const [showTutorial, setShowTutorial] = useState(false);
-    const [currentStep, setCurrentStep] = useState(0);
-
-    useEffect(() => {
-        // Check if user has seen tutorial
-        const hasSeenTutorial = localStorage.getItem('snacksmith_tutorial_completed');
-        if (!hasSeenTutorial) {
-            // Small delay to let the app load first
-            setTimeout(() => setShowTutorial(true), 1000);
-        }
-    }, []);
-
-    const tutorialSteps = [
-        {
-            title: "Welcome to SnackSmith!",
-            content: "Create healthy snacks in 3D with AI-powered nutrition analysis. Let's take a quick tour.",
-            position: "center"
-        },
-        {
-            title: "Ingredient Library",
-            content: "Browse and drag ingredients from this panel to build your snack. Use search and filters to find what you need.",
-            position: "left",
-            highlight: ".ingredient-library"
-        },
-        {
-            title: "3D Canvas",
-            content: "Your snack appears here in 3D! Drag ingredients onto the canvas and watch your creation come to life.",
-            position: "center",
-            highlight: ".snack-canvas"
-        },
-        {
-            title: "Nutrition Analysis",
-            content: "Get real-time nutrition facts, health scores, and detailed breakdowns as you build.",
-            position: "right",
-            highlight: ".nutrition-panel"
-        },
-        {
-            title: "AI Coach",
-            content: "Your personal nutrition assistant provides suggestions, improvements, and answers your questions.",
-            position: "right",
-            highlight: ".ai-coach"
-        },
-        {
-            title: "Ready to Start!",
-            content: "You're all set! Start by dragging an ingredient like almonds or oats onto the canvas.",
-            position: "center"
-        }
-    ];
-
-    const currentStepData = tutorialSteps[currentStep];
-
-    const nextStep = () => {
-        if (currentStep < tutorialSteps.length - 1) {
-            setCurrentStep(currentStep + 1);
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+            setIsFullscreen(true);
         } else {
-            completeTutorial();
+            document.exitFullscreen();
+            setIsFullscreen(false);
         }
     };
-
-    const prevStep = () => {
-        if (currentStep > 0) {
-            setCurrentStep(currentStep - 1);
-        }
-    };
-
-    const completeTutorial = () => {
-        localStorage.setItem('snacksmith_tutorial_completed', 'true');
-        setShowTutorial(false);
-    };
-
-    const skipTutorial = () => {
-        localStorage.setItem('snacksmith_tutorial_completed', 'true');
-        setShowTutorial(false);
-    };
-
-    if (!showTutorial) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-            {/* Tutorial Modal */}
-            <div className="bg-white rounded-lg shadow-xl max-w-md mx-4 p-6">
-                {/* Progress Bar */}
-                <div className="mb-4">
-                    <div className="flex justify-between text-xs text-gray-500 mb-1">
-                        <span>Step {currentStep + 1} of {tutorialSteps.length}</span>
-                        <span>{Math.round(((currentStep + 1) / tutorialSteps.length) * 100)}%</span>
+        <header className="h-12 bg-[var(--bg-panel)] border-b border-[var(--border-color)] flex items-center justify-between px-4 relative z-50">
+            {/* Left Section - Logo & File Menu */}
+            <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--accent-blue)] to-[var(--accent-purple)] flex items-center justify-center">
+                        <Zap className="w-4 h-4 text-white" />
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                            className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${((currentStep + 1) / tutorialSteps.length) * 100}%` }}
-                        />
-                    </div>
+                    <span className="font-bold text-[var(--text-primary)] text-lg">SnackSmith</span>
                 </div>
 
-                {/* Step Content */}
-                <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        {currentStepData.title}
-                    </h3>
-                    <p className="text-gray-600">
-                        {currentStepData.content}
-                    </p>
-                </div>
-
-                {/* Navigation */}
-                <div className="flex justify-between items-center">
-                    <button
-                        onClick={skipTutorial}
-                        className="text-gray-500 hover:text-gray-700 text-sm font-medium"
-                    >
-                        Skip Tour
-                    </button>
-
-                    <div className="flex gap-2">
-                        {currentStep > 0 && (
-                            <button
-                                onClick={prevStep}
-                                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                            >
-                                Previous
-                            </button>
-                        )}
-
-                        <button
-                            onClick={nextStep}
-                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                        >
-                            {currentStep === tutorialSteps.length - 1 ? 'Get Started!' : 'Next'}
-                        </button>
-                    </div>
+                <div className="flex items-center gap-1">
+                    <button className="btn btn-ghost text-xs px-3 py-1">File</button>
+                    <button className="btn btn-ghost text-xs px-3 py-1">Edit</button>
+                    <button className="btn btn-ghost text-xs px-3 py-1">View</button>
+                    <button className="btn btn-ghost text-xs px-3 py-1">Help</button>
                 </div>
             </div>
 
-            {/* Highlight Overlay */}
-            {currentStepData.highlight && (
-                <div className="absolute inset-0 pointer-events-none">
-                    {/* This would highlight specific elements */}
-                    <div className="absolute inset-0 bg-blue-500 bg-opacity-20 rounded-lg animate-pulse" />
+            {/* Center Section - Current Snack Info */}
+            <div className="flex items-center gap-4">
+                {currentSnack.nutrition && (
+                    <div className="flex items-center gap-3 px-4 py-2 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)]">
+                        <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-[var(--accent-green)] animate-pulse" />
+                            <span className="text-sm text-[var(--text-secondary)]">Health Score:</span>
+                            <span className="font-bold text-[var(--accent-green)]">
+                {Math.round(currentSnack.nutrition.health_score)}
+              </span>
+                        </div>
+                        <div className="w-px h-4 bg-[var(--border-color)]" />
+                        <div className="text-sm text-[var(--text-secondary)]">
+                            {currentSnack.ingredients.length} ingredients
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Right Section - Actions */}
+            <div className="flex items-center gap-2">
+                <button onClick={handleSave} className="btn btn-secondary text-xs">
+                    <Save className="w-3 h-3" />
+                    Save
+                </button>
+                <button onClick={handleExport} className="btn btn-secondary text-xs">
+                    <Download className="w-3 h-3" />
+                    Export
+                </button>
+                <button onClick={handleShare} className="btn btn-primary text-xs">
+                    <Share2 className="w-3 h-3" />
+                    Share
+                </button>
+
+                <div className="w-px h-6 bg-[var(--border-color)] mx-2" />
+
+                <button onClick={toggleFullscreen} className="btn btn-ghost btn-icon">
+                    {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </button>
+                <button className="btn btn-ghost btn-icon">
+                    <Settings className="w-4 h-4" />
+                </button>
+            </div>
+        </header>
+    );
+};
+
+// Professional Toolbar
+const Toolbar: React.FC = () => {
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [isMuted, setIsMuted] = useState(true);
+
+    return (
+        <div className="h-10 bg-[var(--bg-panel)] border-b border-[var(--border-color)] flex items-center justify-between px-4">
+            {/* Left - Tool Selection */}
+            <div className="flex items-center gap-1">
+                <button className="btn btn-ghost btn-icon p-2">
+                    <Menu className="w-4 h-4" />
+                </button>
+                <div className="w-px h-6 bg-[var(--border-color)] mx-2" />
+                <button className="btn btn-secondary btn-icon p-2">
+                    <Grid3X3 className="w-4 h-4" />
+                </button>
+                <button className="btn btn-ghost btn-icon p-2">
+                    <Layers className="w-4 h-4" />
+                </button>
+                <button className="btn btn-ghost btn-icon p-2">
+                    <Eye className="w-4 h-4" />
+                </button>
+            </div>
+
+            {/* Center - Playback Controls */}
+            <div className="flex items-center gap-2">
+                <button
+                    onClick={() => setIsPlaying(!isPlaying)}
+                    className="btn btn-secondary btn-icon p-2"
+                >
+                    {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                </button>
+                <button className="btn btn-ghost btn-icon p-2">
+                    <RotateCcw className="w-4 h-4" />
+                </button>
+                <div className="text-xs text-[var(--text-muted)] font-mono">
+                    Frame 1 / 120
                 </div>
-            )}
+            </div>
+
+            {/* Right - View Options */}
+            <div className="flex items-center gap-1">
+                <button
+                    onClick={() => setIsMuted(!isMuted)}
+                    className="btn btn-ghost btn-icon p-2"
+                >
+                    {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                </button>
+                <button className="btn btn-ghost btn-icon p-2">
+                    <Lightbulb className="w-4 h-4" />
+                </button>
+            </div>
         </div>
     );
 };
 
-// Main App Component
+// Status Bar
+const StatusBar: React.FC = () => {
+    const { ui, currentSnack } = useSnackStore();
+
+    return (
+        <div className="h-6 bg-[var(--bg-panel)] border-t border-[var(--border-color)] flex items-center justify-between px-4 text-xs text-[var(--text-muted)]">
+            <div className="flex items-center gap-4">
+                <span>Ready</span>
+                {ui.isLoading && (
+                    <div className="flex items-center gap-2">
+                        <div className="loading-spinner" />
+                        <span>Processing...</span>
+                    </div>
+                )}
+            </div>
+
+            <div className="flex items-center gap-4">
+                <span>Vertices: 1.2K</span>
+                <span>Faces: 2.4K</span>
+                <span>Objects: {currentSnack.ingredients.length + 1}</span>
+                <span className="text-[var(--accent-blue)]">3D Viewport</span>
+            </div>
+        </div>
+    );
+};
+
+// Panel Resizer Component
+const PanelResizer: React.FC<{
+    onResize: (delta: number) => void;
+    orientation: 'horizontal' | 'vertical';
+}> = ({ onResize, orientation }) => {
+    const [isDragging, setIsDragging] = useState(false);
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        setIsDragging(true);
+        const startPos = orientation === 'horizontal' ? e.clientX : e.clientY;
+
+        const handleMouseMove = (e: MouseEvent) => {
+            const currentPos = orientation === 'horizontal' ? e.clientX : e.clientY;
+            const delta = currentPos - startPos;
+            onResize(delta);
+        };
+
+        const handleMouseUp = () => {
+            setIsDragging(false);
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+    };
+
+    return (
+        <div
+            className={`group ${
+                orientation === 'horizontal'
+                    ? 'w-1 cursor-col-resize hover:bg-[var(--accent-blue)] transition-colors'
+                    : 'h-1 cursor-row-resize hover:bg-[var(--accent-blue)] transition-colors'
+            } ${isDragging ? 'bg-[var(--accent-blue)]' : 'bg-[var(--border-color)]'}`}
+            onMouseDown={handleMouseDown}
+        />
+    );
+};
+
+// Main Application Component
 export default function SnackSmithApp() {
-    const {
-        ui,
-        notifications,
-        currentSnack,
-        dismissNotification,
-        initializeApp
-    } = useSnackStore();
+    const { initializeApp, notifications, dismissNotification } = useSnackStore();
 
-    const [leftPanelOpen, setLeftPanelOpen] = useState(true);
-    const [rightPanelOpen, setRightPanelOpen] = useState(true);
-    const [activeRightPanel, setActiveRightPanel] = useState<'nutrition' | 'ai'>('nutrition');
+    // Panel sizes (in pixels)
+    const [leftPanelWidth, setLeftPanelWidth] = useState(320);
+    const [rightPanelWidth, setRightPanelWidth] = useState(360);
+    const [bottomPanelHeight, setBottomPanelHeight] = useState(200);
 
-    // Initialize app on mount
+    // Panel visibility
+    const [showLeftPanel, setShowLeftPanel] = useState(true);
+    const [showRightPanel, setShowRightPanel] = useState(true);
+    const [showBottomPanel, setShowBottomPanel] = useState(false);
+
+    // Active tabs
+    const [activeRightTab, setActiveRightTab] = useState<'nutrition' | 'ai'>('nutrition');
+    const [activeBottomTab, setActiveBottomTab] = useState<'timeline' | 'properties'>('timeline');
+
     useEffect(() => {
         initializeApp();
     }, [initializeApp]);
 
-    // Handle keyboard shortcuts
+    // Keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            // Ctrl/Cmd + 1: Toggle ingredient library
-            if ((e.ctrlKey || e.metaKey) && e.key === '1') {
-                e.preventDefault();
-                setLeftPanelOpen(!leftPanelOpen);
-            }
-            // Ctrl/Cmd + 2: Toggle nutrition panel
-            if ((e.ctrlKey || e.metaKey) && e.key === '2') {
-                e.preventDefault();
-                setRightPanelOpen(!rightPanelOpen);
-                setActiveRightPanel('nutrition');
-            }
-            // Ctrl/Cmd + 3: Toggle AI coach
-            if ((e.ctrlKey || e.metaKey) && e.key === '3') {
-                e.preventDefault();
-                setRightPanelOpen(!rightPanelOpen);
-                setActiveRightPanel('ai');
-            }
-            // Escape: Close all panels
-            if (e.key === 'Escape') {
-                setLeftPanelOpen(false);
-                setRightPanelOpen(false);
+            if (e.ctrlKey || e.metaKey) {
+                switch (e.key) {
+                    case '1':
+                        e.preventDefault();
+                        setShowLeftPanel(!showLeftPanel);
+                        break;
+                    case '2':
+                        e.preventDefault();
+                        setShowRightPanel(!showRightPanel);
+                        break;
+                    case '3':
+                        e.preventDefault();
+                        setShowBottomPanel(!showBottomPanel);
+                        break;
+                    case 's':
+                        e.preventDefault();
+                        // Save functionality
+                        break;
+                }
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [leftPanelOpen, rightPanelOpen]);
-
-    // Responsive panel behavior
-    useEffect(() => {
-        const handleResize = () => {
-            if (window.innerWidth < 1024) {
-                // On smaller screens, show only one panel at a time
-                if (leftPanelOpen && rightPanelOpen) {
-                    setRightPanelOpen(false);
-                }
-            }
-        };
-
-        window.addEventListener('resize', handleResize);
-        handleResize(); // Check on mount
-
-        return () => window.removeEventListener('resize', handleResize);
-    }, [leftPanelOpen, rightPanelOpen]);
-
-    // Panel widths and responsive behavior
-    const leftPanelWidth = leftPanelOpen ? 'w-80' : 'w-0';
-    const rightPanelWidth = rightPanelOpen ? 'w-80' : 'w-0';
+    }, [showLeftPanel, showRightPanel, showBottomPanel]);
 
     return (
-        <div className="h-screen flex flex-col bg-gray-100 overflow-hidden">
+        <div className="h-screen flex flex-col overflow-hidden bg-[var(--bg-primary)]">
             {/* Header */}
             <Header />
 
+            {/* Toolbar */}
+            <Toolbar />
+
             {/* Main Content Area */}
-            <div className="flex-1 flex relative">
+            <div className="flex-1 flex overflow-hidden">
                 {/* Left Panel - Ingredient Library */}
-                <div className={`${leftPanelWidth} transition-all duration-300 ease-in-out overflow-hidden border-r border-gray-200 bg-white flex-shrink-0`}>
-                    {leftPanelOpen && (
-                        <div className="h-full ingredient-library">
-                            <IngredientLibrary />
-                        </div>
+                <AnimatePresence>
+                    {showLeftPanel && (
+                        <motion.div
+                            initial={{ width: 0, opacity: 0 }}
+                            animate={{ width: leftPanelWidth, opacity: 1 }}
+                            exit={{ width: 0, opacity: 0 }}
+                            transition={{ duration: 0.2, ease: 'easeInOut' }}
+                            className="flex-shrink-0 bg-[var(--bg-panel)] border-r border-[var(--border-color)] overflow-hidden"
+                        >
+                            <div className="h-full flex flex-col">
+                                <div className="panel-header">
+                                    <Grid3X3 className="w-4 h-4 text-[var(--accent-blue)]" />
+                                    Ingredient Library
+                                    <button
+                                        onClick={() => setShowLeftPanel(false)}
+                                        className="ml-auto btn btn-ghost btn-icon p-1"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                                <div className="flex-1 overflow-hidden">
+                                    <IngredientLibrary />
+                                </div>
+                            </div>
+                        </motion.div>
                     )}
-                </div>
+                </AnimatePresence>
 
-                {/* Center Panel - 3D Canvas */}
-                <div className="flex-1 relative min-w-0">
-                    {ui.isLoading && <LoadingOverlay />}
+                {/* Left Resizer */}
+                {showLeftPanel && (
+                    <PanelResizer
+                        orientation="horizontal"
+                        onResize={(delta) => {
+                            const newWidth = Math.max(250, Math.min(500, leftPanelWidth + delta));
+                            setLeftPanelWidth(newWidth);
+                        }}
+                    />
+                )}
 
+                {/* Center Area - 3D Viewport */}
+                <div className="flex-1 flex flex-col overflow-hidden">
                     {/* 3D Canvas */}
-                    <div className="h-full snack-canvas">
+                    <div className="flex-1 relative">
                         <SnackCanvas />
-                    </div>
 
-                    {/* Panel Toggle Controls */}
-                    <div className="absolute top-4 left-4 flex flex-col gap-2">
-                        <PanelToggle
-                            isOpen={leftPanelOpen}
-                            onToggle={() => setLeftPanelOpen(!leftPanelOpen)}
-                            side="left"
-                            icon={<Library className="w-4 h-4" />}
-                            label="Ingredients"
-                        />
-                    </div>
+                        {/* Viewport Controls Overlay */}
+                        <div className="absolute top-4 left-4 flex flex-col gap-2">
+                            {!showLeftPanel && (
+                                <button
+                                    onClick={() => setShowLeftPanel(true)}
+                                    className="btn btn-secondary btn-icon"
+                                    title="Show Ingredient Library (Ctrl+1)"
+                                >
+                                    <Menu className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
 
-                    <div className="absolute top-4 right-4 flex flex-col gap-2">
-                        <PanelToggle
-                            isOpen={rightPanelOpen && activeRightPanel === 'nutrition'}
-                            onToggle={() => {
-                                if (rightPanelOpen && activeRightPanel === 'nutrition') {
-                                    setRightPanelOpen(false);
-                                } else {
-                                    setRightPanelOpen(true);
-                                    setActiveRightPanel('nutrition');
-                                }
-                            }}
-                            side="right"
-                            icon={<Activity className="w-4 h-4" />}
-                            label="Nutrition"
-                        />
+                        <div className="absolute top-4 right-4 flex flex-col gap-2">
+                            {!showRightPanel && (
+                                <button
+                                    onClick={() => setShowRightPanel(true)}
+                                    className="btn btn-secondary btn-icon"
+                                    title="Show Side Panel (Ctrl+2)"
+                                >
+                                    <Layers className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
 
-                        <PanelToggle
-                            isOpen={rightPanelOpen && activeRightPanel === 'ai'}
-                            onToggle={() => {
-                                if (rightPanelOpen && activeRightPanel === 'ai') {
-                                    setRightPanelOpen(false);
-                                } else {
-                                    setRightPanelOpen(true);
-                                    setActiveRightPanel('ai');
-                                }
-                            }}
-                            side="right"
-                            icon={<Bot className="w-4 h-4" />}
-                            label="AI Coach"
-                        />
-                    </div>
-
-                    {/* Quick Stats Overlay */}
-                    {currentSnack.nutrition && (
-                        <div className="absolute bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 border border-gray-200">
-                            <div className="text-sm font-medium text-gray-700 mb-2">Quick Stats</div>
-                            <div className="grid grid-cols-2 gap-3 text-xs">
-                                <div>
-                                    <span className="text-gray-500">Health Score</span>
-                                    <div className="font-bold text-lg">
-                                        {Math.round(currentSnack.nutrition.health_score)}/100
+                        {/* Quick Actions Overlay */}
+                        <div className="absolute bottom-4 left-4 right-4">
+                            <div className="viewport-overlay">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                    <span className="text-sm text-[var(--text-secondary)]">
+                      Drop ingredients here to build your snack
+                    </span>
                                     </div>
-                                </div>
-                                <div>
-                                    <span className="text-gray-500">Calories</span>
-                                    <div className="font-bold text-lg">
-                                        {Math.round(currentSnack.nutrition.nutrition_per_serving.calories_per_100g)}
-                                    </div>
-                                </div>
-                                <div>
-                                    <span className="text-gray-500">Protein</span>
-                                    <div className="font-bold">
-                                        {currentSnack.nutrition.nutrition_per_100g.protein_g.toFixed(1)}g
-                                    </div>
-                                </div>
-                                <div>
-                                    <span className="text-gray-500">Fiber</span>
-                                    <div className="font-bold">
-                                        {currentSnack.nutrition.nutrition_per_100g.fiber_g.toFixed(1)}g
+                                    <div className="flex items-center gap-2">
+                                        <button className="btn btn-ghost text-xs">Reset View</button>
+                                        <button className="btn btn-ghost text-xs">Focus</button>
+                                        <button
+                                            onClick={() => setShowBottomPanel(!showBottomPanel)}
+                                            className="btn btn-secondary text-xs"
+                                        >
+                                            Timeline
+                                        </button>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    )}
-
-                    {/* Keyboard Shortcuts Help */}
-                    <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-3 border border-gray-200 opacity-75 hover:opacity-100 transition-opacity">
-                        <div className="text-xs font-medium text-gray-700 mb-2">Shortcuts</div>
-                        <div className="space-y-1 text-xs text-gray-600">
-                            <div><kbd className="bg-gray-100 px-1 rounded text-xs">Ctrl+1</kbd> Ingredients</div>
-                            <div><kbd className="bg-gray-100 px-1 rounded text-xs">Ctrl+2</kbd> Nutrition</div>
-                            <div><kbd className="bg-gray-100 px-1 rounded text-xs">Ctrl+3</kbd> AI Coach</div>
-                            <div><kbd className="bg-gray-100 px-1 rounded text-xs">Esc</kbd> Close all</div>
-                        </div>
                     </div>
 
-                    {/* Error Display */}
-                    {ui.error && (
-                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-red-50 border border-red-200 rounded-lg p-4 max-w-md">
-                            <div className="flex items-center gap-2 text-red-800">
-                                <AlertCircle className="w-5 h-5" />
-                                <span className="font-medium">Error</span>
-                            </div>
-                            <p className="text-red-700 text-sm mt-1">{ui.error}</p>
-                        </div>
+                    {/* Bottom Panel - Timeline/Properties */}
+                    <AnimatePresence>
+                        {showBottomPanel && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: bottomPanelHeight, opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.2, ease: 'easeInOut' }}
+                                className="flex-shrink-0 bg-[var(--bg-panel)] border-t border-[var(--border-color)] overflow-hidden"
+                            >
+                                <div className="h-full flex flex-col">
+                                    {/* Bottom Panel Tabs */}
+                                    <div className="flex items-center gap-1 px-4 py-2 border-b border-[var(--border-color)]">
+                                        <button
+                                            onClick={() => setActiveBottomTab('timeline')}
+                                            className={`btn text-xs ${
+                                                activeBottomTab === 'timeline' ? 'btn-secondary' : 'btn-ghost'
+                                            }`}
+                                        >
+                                            Timeline
+                                        </button>
+                                        <button
+                                            onClick={() => setActiveBottomTab('properties')}
+                                            className={`btn text-xs ${
+                                                activeBottomTab === 'properties' ? 'btn-secondary' : 'btn-ghost'
+                                            }`}
+                                        >
+                                            Properties
+                                        </button>
+                                        <div className="flex-1" />
+                                        <button
+                                            onClick={() => setShowBottomPanel(false)}
+                                            className="btn btn-ghost btn-icon p-1"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+
+                                    {/* Bottom Panel Content */}
+                                    <div className="flex-1 p-4">
+                                        {activeBottomTab === 'timeline' ? (
+                                            <div className="text-sm text-[var(--text-muted)]">
+                                                Timeline controls will appear here
+                                            </div>
+                                        ) : (
+                                            <div className="text-sm text-[var(--text-muted)]">
+                                                Selected object properties will appear here
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Bottom Resizer */}
+                    {showBottomPanel && (
+                        <PanelResizer
+                            orientation="vertical"
+                            onResize={(delta) => {
+                                const newHeight = Math.max(150, Math.min(400, bottomPanelHeight - delta));
+                                setBottomPanelHeight(newHeight);
+                            }}
+                        />
                     )}
                 </div>
 
-                {/* Right Panel - Nutrition/AI */}
-                <div className={`${rightPanelWidth} transition-all duration-300 ease-in-out overflow-hidden border-l border-gray-200 bg-white flex-shrink-0`}>
-                    {rightPanelOpen && (
-                        <div className="h-full flex flex-col">
-                            {/* Panel Tabs */}
-                            <div className="flex border-b border-gray-200 bg-gray-50">
-                                <button
-                                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
-                                        activeRightPanel === 'nutrition'
-                                            ? 'bg-white text-blue-600 border-b-2 border-blue-600'
-                                            : 'text-gray-600 hover:text-gray-900'
-                                    }`}
-                                    onClick={() => setActiveRightPanel('nutrition')}
-                                >
-                                    <Activity className="w-4 h-4" />
-                                    Nutrition
-                                </button>
+                {/* Right Resizer */}
+                {showRightPanel && (
+                    <PanelResizer
+                        orientation="horizontal"
+                        onResize={(delta) => {
+                            const newWidth = Math.max(300, Math.min(600, rightPanelWidth - delta));
+                            setRightPanelWidth(newWidth);
+                        }}
+                    />
+                )}
 
-                                <button
-                                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
-                                        activeRightPanel === 'ai'
-                                            ? 'bg-white text-purple-600 border-b-2 border-purple-600'
-                                            : 'text-gray-600 hover:text-gray-900'
-                                    }`}
-                                    onClick={() => setActiveRightPanel('ai')}
-                                >
-                                    <Bot className="w-4 h-4" />
-                                    AI Coach
-                                </button>
-                            </div>
+                {/* Right Panel - Nutrition & AI */}
+                <AnimatePresence>
+                    {showRightPanel && (
+                        <motion.div
+                            initial={{ width: 0, opacity: 0 }}
+                            animate={{ width: rightPanelWidth, opacity: 1 }}
+                            exit={{ width: 0, opacity: 0 }}
+                            transition={{ duration: 0.2, ease: 'easeInOut' }}
+                            className="flex-shrink-0 bg-[var(--bg-panel)] border-l border-[var(--border-color)] overflow-hidden"
+                        >
+                            <div className="h-full flex flex-col">
+                                {/* Right Panel Tabs */}
+                                <div className="flex items-center gap-1 px-4 py-3 border-b border-[var(--border-color)]">
+                                    <button
+                                        onClick={() => setActiveRightTab('nutrition')}
+                                        className={`btn text-xs ${
+                                            activeRightTab === 'nutrition' ? 'btn-secondary' : 'btn-ghost'
+                                        }`}
+                                    >
+                                        <Zap className="w-3 h-3" />
+                                        Nutrition
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveRightTab('ai')}
+                                        className={`btn text-xs ${
+                                            activeRightTab === 'ai' ? 'btn-secondary' : 'btn-ghost'
+                                        }`}
+                                    >
+                                        <Lightbulb className="w-3 h-3" />
+                                        AI Coach
+                                    </button>
+                                    <div className="flex-1" />
+                                    <button
+                                        onClick={() => setShowRightPanel(false)}
+                                        className="btn btn-ghost btn-icon p-1"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
 
-                            {/* Panel Content */}
-                            <div className="flex-1 overflow-hidden">
-                                {activeRightPanel === 'nutrition' ? (
-                                    <div className="nutrition-panel h-full">
+                                {/* Right Panel Content */}
+                                <div className="flex-1 overflow-hidden">
+                                    {activeRightTab === 'nutrition' ? (
                                         <NutritionPanel />
-                                    </div>
-                                ) : (
-                                    <div className="ai-coach h-full">
+                                    ) : (
                                         <AICoach />
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        </motion.div>
                     )}
-                </div>
+                </AnimatePresence>
             </div>
+
+            {/* Status Bar */}
+            <StatusBar />
 
             {/* Notifications */}
-            {notifications.length > 0 && (
-                <div className="absolute top-20 right-4 z-50 space-y-2 max-w-sm">
-                    {notifications.map((notification) => (
-                        <Notification
-                            key={notification.id}
-                            notification={notification}
-                            onDismiss={dismissNotification}
-                        />
-                    ))}
-                </div>
-            )}
+            <AnimatePresence>
+                {notifications.map((notification) => (
+                    <motion.div
+                        key={notification.id}
+                        initial={{ opacity: 0, x: 300 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 300 }}
+                        className="fixed top-16 right-4 z-50 max-w-sm"
+                    >
+                        <div className={`panel p-4 border-l-4 ${
+                            notification.type === 'success' ? 'border-l-[var(--accent-green)]' :
+                                notification.type === 'error' ? 'border-l-[var(--accent-red)]' :
+                                    notification.type === 'warning' ? 'border-l-[var(--accent-orange)]' :
+                                        'border-l-[var(--accent-blue)]'
+                        }`}>
+                            <div className="flex items-start justify-between gap-3">
+                                <p className="text-sm text-[var(--text-primary)]">
+                                    {notification.message}
+                                </p>
+                                <button
+                                    onClick={() => dismissNotification(notification.id)}
+                                    className="btn btn-ghost btn-icon p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                ))}
+            </AnimatePresence>
 
-            {/* Mobile Warning */}
-            <div className="md:hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
-                <div className="bg-white rounded-lg p-6 m-4 max-w-sm text-center">
-                    <div className="text-4xl mb-4">📱</div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Desktop Experience Required</h3>
-                    <p className="text-gray-600 text-sm">
-                        SnackSmith is optimized for desktop and tablet devices. Please use a larger screen for the best 3D experience.
-                    </p>
+            {/* Keyboard Shortcuts Help */}
+            <div className="fixed bottom-4 left-4 text-xs text-[var(--text-muted)] opacity-50 hover:opacity-100 transition-opacity">
+                <div className="panel p-2">
+                    <div className="space-y-1">
+                        <div><kbd className="bg-[var(--bg-hover)] px-1 rounded">Ctrl+1</kbd> Toggle Library</div>
+                        <div><kbd className="bg-[var(--bg-hover)] px-1 rounded">Ctrl+2</kbd> Toggle Panel</div>
+                        <div><kbd className="bg-[var(--bg-hover)] px-1 rounded">Ctrl+S</kbd> Save</div>
+                    </div>
                 </div>
             </div>
-
-            {/* Tutorial Overlay */}
-            <TutorialOverlay />
         </div>
     );
 }
