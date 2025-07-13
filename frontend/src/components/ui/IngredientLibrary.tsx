@@ -1,4 +1,6 @@
 // src/components/ui/IngredientLibrary.tsx
+'use client';
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
     Search,
@@ -374,7 +376,10 @@ const IngredientCard: React.FC<IngredientCardProps> = ({
                             step="5"
                             value={amount}
                             onChange={(e) => setAmount(Number(e.target.value))}
-                            className="flex-1 h-2 bg-white/50 rounded-lg appearance-none cursor-pointer slider"
+                            className="flex-1 h-2 rounded-lg appearance-none cursor-pointer"
+                            style={{
+                                background: `linear-gradient(to right, #3B82F6 0%, #3B82F6 ${(amount / 100) * 100}%, #E5E7EB ${(amount / 100) * 100}%, #E5E7EB 100%)`
+                            }}
                         />
                         <span className="text-sm font-bold text-gray-900 w-8 text-right">
                             {amount}g
@@ -739,13 +744,9 @@ export default function IngredientLibrary() {
                 </div>
             </div>
 
-            {/* Custom Styles */}
-            <style jsx>{`
-                .slider {
-                    background: linear-gradient(to right, #3B82F6 0%, #3B82F6 ${(amount / 100) * 100}%, #E5E7EB ${(amount / 100) * 100}%, #E5E7EB 100%);
-                }
-                
-                .slider::-webkit-slider-thumb {
+            {/* Custom Styles for Slider */}
+            <style jsx global>{`
+                input[type="range"]::-webkit-slider-thumb {
                     appearance: none;
                     width: 20px;
                     height: 20px;
@@ -755,8 +756,8 @@ export default function IngredientLibrary() {
                     border: 2px solid white;
                     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
                 }
-                
-                .slider::-moz-range-thumb {
+
+                input[type="range"]::-moz-range-thumb {
                     width: 20px;
                     height: 20px;
                     background: #3B82F6;
@@ -764,6 +765,16 @@ export default function IngredientLibrary() {
                     border-radius: 50%;
                     border: 2px solid white;
                     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+                    border: none;
+                }
+
+                input[type="range"]::-moz-range-track {
+                    background: transparent;
+                    border: none;
+                }
+
+                input[type="range"]:focus {
+                    outline: none;
                 }
             `}</style>
         </div>

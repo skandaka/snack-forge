@@ -1,4 +1,6 @@
 // src/components/layout/Header.tsx
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import {
     Save,

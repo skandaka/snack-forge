@@ -19,10 +19,10 @@ import {
     Center,
     Effects,
     Sparkles,
-    Stars,
-    Info,
-    X
+    Stars
 } from '@react-three/drei';
+import { ChevronDown, Info, X } from 'lucide-react';
+
 import { useSnackStore } from '../../stores/snackStore';
 import { Ingredient } from '../../types/snack';
 import * as THREE from 'three';
