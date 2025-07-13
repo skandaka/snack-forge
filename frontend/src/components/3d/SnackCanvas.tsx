@@ -40,8 +40,9 @@ import {
 import { EffectComposer, Bloom, DepthOfField, Noise, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import SnackModel from './SnackModel';
+import { Ingredient as StoreIngredient } from '../../types/snack';
 
-interface Ingredient {
+interface CanvasIngredient {
     name: string;
     amount_g: number;
     color?: string;
@@ -53,14 +54,14 @@ interface Ingredient {
 }
 
 interface SnackCanvasProps {
-    ingredients: Ingredient[];
+    ingredients?: CanvasIngredient[];
     className?: string;
     enableControls?: boolean;
     showLabels?: boolean;
     animationSpeed?: number;
     interactionMode?: 'orbit' | 'inspect' | 'build' | 'presentation';
-    onIngredientClick?: (ingredient: Ingredient, index: number) => void;
-    onIngredientHover?: (ingredient: Ingredient | null, index?: number) => void;
+    onIngredientClick?: (ingredient: CanvasIngredient, index: number) => void;
+    onIngredientHover?: (ingredient: CanvasIngredient | null, index?: number) => void;
     containerShape?: 'box' | 'ball' | 'bar' | 'custom';
     showNutritionVisualization?: boolean;
     theme?: 'realistic' | 'abstract' | 'minimal' | 'premium' | 'playful';
@@ -134,7 +135,42 @@ const LightingRig: React.FC<{
                 point: { intensity: 0.5, position: [-10, -10, -10] as [number, number, number], color: '#ffffff' },
                 spot: { intensity: 0.8, position: [0, 10, 0] as [number, number, number], color: '#ffffff' }
             },
-            // Rest of configs remain the same with proper type annotations
+            sunset: {
+                ambient: { intensity: 0.3, color: '#ffeeaa' },
+                directional: { intensity: 1.2, position: [5, 8, 10] as [number, number, number], color: '#ffaa44' },
+                point: { intensity: 0.4, position: [-8, -5, -8] as [number, number, number], color: '#ff6644' },
+                spot: { intensity: 0.6, position: [0, 12, 0] as [number, number, number], color: '#ffcc66' }
+            },
+            dawn: {
+                ambient: { intensity: 0.2, color: '#aaeeff' },
+                directional: { intensity: 0.8, position: [8, 6, 5] as [number, number, number], color: '#cceeff' },
+                point: { intensity: 0.3, position: [-6, -8, -10] as [number, number, number], color: '#88ccff' },
+                spot: { intensity: 0.5, position: [0, 15, 0] as [number, number, number], color: '#bbddff' }
+            },
+            night: {
+                ambient: { intensity: 0.1, color: '#001122' },
+                directional: { intensity: 0.3, position: [2, 5, 8] as [number, number, number], color: '#112244' },
+                point: { intensity: 0.8, position: [-5, -3, -5] as [number, number, number], color: '#4466aa' },
+                spot: { intensity: 1.2, position: [0, 8, 0] as [number, number, number], color: '#6688cc' }
+            },
+            warehouse: {
+                ambient: { intensity: 0.6, color: '#f0f0f0' },
+                directional: { intensity: 0.8, position: [12, 12, 8] as [number, number, number], color: '#ffffff' },
+                point: { intensity: 0.4, position: [-12, -8, -12] as [number, number, number], color: '#f8f8f8' },
+                spot: { intensity: 0.6, position: [0, 16, 0] as [number, number, number], color: '#ffffff' }
+            },
+            city: {
+                ambient: { intensity: 0.5, color: '#ffeecc' },
+                directional: { intensity: 0.9, position: [6, 10, 8] as [number, number, number], color: '#ffddaa' },
+                point: { intensity: 0.6, position: [-8, -6, -8] as [number, number, number], color: '#ffcc88' },
+                spot: { intensity: 0.7, position: [0, 12, 0] as [number, number, number], color: '#ffeeaa' }
+            },
+            forest: {
+                ambient: { intensity: 0.3, color: '#aaffaa' },
+                directional: { intensity: 0.7, position: [8, 12, 6] as [number, number, number], color: '#ccffcc' },
+                point: { intensity: 0.3, position: [-6, -10, -8] as [number, number, number], color: '#88dd88' },
+                spot: { intensity: 0.5, position: [0, 20, 0] as [number, number, number], color: '#aaffaa' }
+            }
         };
 
         return configs[preset as keyof typeof configs] || configs.studio;
@@ -232,7 +268,7 @@ const EnvironmentSetup: React.FC<{
 const ParticleEffects: React.FC<{
     count: number;
     theme: string;
-    ingredients: Ingredient[];
+    ingredients: CanvasIngredient[];
 }> = ({ count, theme, ingredients }) => {
     const sparkleColors = useMemo(() => {
         if (theme === 'playful') return ['#ff6b6b', '#4ecdc4', '#45b7d1', '#ffa726', '#ab47bc'];
@@ -267,8 +303,7 @@ const PostProcessingEffects: React.FC<{
     return (
         <Effects>
             <EffectComposer>
-                {/* Fix conditional rendering by providing non-boolean default */}
-                {theme === 'premium' ? (
+                {theme === 'premium' && (
                     <>
                         <Bloom
                             luminanceThreshold={0.2}
@@ -281,9 +316,9 @@ const PostProcessingEffects: React.FC<{
                             bokehScale={3}
                         />
                     </>
-                ) : null}
+                )}
 
-                {theme === 'playful' ? (
+                {theme === 'playful' && (
                     <>
                         <Bloom
                             luminanceThreshold={0.3}
@@ -292,9 +327,9 @@ const PostProcessingEffects: React.FC<{
                         />
                         <Noise opacity={0.05} />
                     </>
-                ) : null}
+                )}
 
-                {theme === 'realistic' ? (
+                {theme === 'realistic' && (
                     <>
                         <Bloom
                             luminanceThreshold={0.4}
@@ -307,7 +342,7 @@ const PostProcessingEffects: React.FC<{
                             eskil={false}
                         />
                     </>
-                ) : null}
+                )}
             </EffectComposer>
         </Effects>
     );
@@ -324,7 +359,6 @@ const CameraController: React.FC<{
     const { camera } = useThree();
 
     useEffect(() => {
-        // Fix Vector3 error by using Vector3 constructor
         camera.position.set(position[0], position[1], position[2]);
         camera.lookAt(target[0], target[1], target[2]);
     }, [camera, position, target]);
@@ -369,9 +403,20 @@ const CameraController: React.FC<{
     );
 };
 
+// Convert CanvasIngredient to StoreIngredient for SnackModel
+const convertIngredients = (ingredients: CanvasIngredient[]): StoreIngredient[] => {
+    return ingredients.map(ingredient => ({
+        name: ingredient.name,
+        amount_g: ingredient.amount_g,
+        nutrition: undefined, // SnackModel will handle this
+        properties: undefined, // SnackModel will handle this
+        category: ingredient.category
+    }));
+};
+
 // Main SnackCanvas component
 const SnackCanvas: React.FC<SnackCanvasProps> = ({
-                                                     ingredients,
+                                                     ingredients = [],
                                                      className = '',
                                                      enableControls = true,
                                                      showLabels = true,
@@ -406,6 +451,32 @@ const SnackCanvas: React.FC<SnackCanvasProps> = ({
     const [currentFps, setCurrentFps] = useState(60);
     const [adaptiveQuality, setAdaptiveQuality] = useState(qualityLevel);
     const [error, setError] = useState<Error | null>(null);
+
+    // Convert ingredients for SnackModel
+    const storeIngredients = useMemo(() => convertIngredients(ingredients), [ingredients]);
+
+    // Handle ingredient interactions with proper type conversion
+    const handleIngredientClick = (ingredient: StoreIngredient, index: number) => {
+        if (onIngredientClick) {
+            const canvasIngredient: CanvasIngredient = {
+                name: ingredient.name,
+                amount_g: ingredient.amount_g,
+                category: ingredient.category
+            };
+            onIngredientClick(canvasIngredient, index);
+        }
+    };
+
+    const handleIngredientHover = (ingredient: StoreIngredient | null, index?: number) => {
+        if (onIngredientHover) {
+            const canvasIngredient = ingredient ? {
+                name: ingredient.name,
+                amount_g: ingredient.amount_g,
+                category: ingredient.category
+            } : null;
+            onIngredientHover(canvasIngredient, index);
+        }
+    };
 
     return (
         <div className={`w-full h-full min-h-[400px] ${className}`}>
@@ -451,12 +522,12 @@ const SnackCanvas: React.FC<SnackCanvasProps> = ({
 
                     {/* Main snack model */}
                     <SnackModel
-                        ingredients={ingredients}
+                        ingredients={storeIngredients}
                         containerShape={containerShape}
                         animationSpeed={animationSpeed}
                         showLabels={showLabels}
-                        onIngredientClick={onIngredientClick}
-                        onIngredientHover={onIngredientHover}
+                        onIngredientClick={handleIngredientClick}
+                        onIngredientHover={handleIngredientHover}
                         showNutritionVisualization={showNutritionVisualization}
                         theme={theme as "realistic" | "abstract" | "minimal"}
                         qualityLevel={qualityLevel as "low" | "medium" | "high"}
