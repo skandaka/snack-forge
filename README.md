@@ -1,17 +1,17 @@
+
 # 🍔 SnackSmith: The AI-Powered 3D Snack Builder
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/skandaka/snack-forge/main/frontend/public/logo.png" alt="SnackSmith Logo" width="150">
-  <p>
-    <strong>Forge the perfect healthy snack with the power of AI and 3D visualization.</strong>
-  </p>
-  <p>
-    <a href="#-key-features">Key Features</a> •
-    <a href="#-tech-stack">Tech Stack</a> •
-    <a href="#-getting-started">Getting Started</a> •
-    <a href="#-environment-variables">Configuration</a> •
-    <a href="#-contributing">Contributing</a>
-  </p>
+<img src="https://raw.githubusercontent.com/skandaka/snack-forge/main/frontend/public/logo.png" alt="SnackSmith Logo" width="150">
+<p>
+<strong>Forge the perfect healthy snack with the power of AI and 3D visualization.</strong>
+</p>
+<p>
+<a href="#-key-features">Key Features</a> •
+<a href="#-tech-stack">Tech Stack</a> •
+<a href="#-getting-started">Getting Started</a> •
+<a href="#-troubleshooting">Troubleshooting</a>
+</p>
 </div>
 
 ---
@@ -32,83 +32,146 @@
 
 ## 🛠️ Tech Stack
 
-| Area      | Technology                                                                                                  |
-| :-------- | :---------------------------------------------------------------------------------------------------------- |
+| Area       | Technology                                                                                                   |
+| :--------- | :----------------------------------------------------------------------------------------------------------- |
 | **Frontend** | [**Next.js**](https://nextjs.org/), [**React**](https://reactjs.org/), [**TypeScript**](https://www.typescriptlang.org/), [**Tailwind CSS**](https://tailwindcss.com/) |
 | **3D** | [**React Three Fiber**](https://docs.pmnd.rs/react-three-fiber/getting-started/introduction), [**three.js**](https://threejs.org/), [**Drei**](https://github.com/pmndrs/drei)      |
 | **AI** | [**Google Gemini API**](https://ai.google.dev/)                                                              |
-| **State** | [**Zustand**](https://github.com/pmndrs/zustand)                                                            |
-| **Backend** | [**Flask**](https://flask.palletsprojects.com/), [**Python**](https://www.python.org/)                                                              |
-| **Styling** | [**Framer Motion**](https://www.framer.com/motion/) for animations                                          |
+| **State** | [**Zustand**](https://github.com/pmndrs/zustand)                                                             |
+| **Backend** | [**Flask**](https://flask.palletsprojects.com/), [**Python**](https://www.python.org/)                                                               |
+| **Styling** | [**Framer Motion**](https://www.framer.com/motion/) for animations                                           |
 
 ## 🚀 Getting Started
 
-Follow these instructions to get the project up and running on your local machine.
+Follow these instructions to get the project up and running on your local machine. These steps are designed to be universal for **Windows, macOS, and Linux**.
 
 ### Prerequisites
 
-* **Node.js** (v18 or later)
-* **Python** (v3.8 or later) & `pip`
-* A **Google Gemini API Key** (see [Configuration](#-environment-variables) section)
+* **Node.js** (v18 or later) - [Download here](https://nodejs.org/)
+* **Python** (v3.8 or later) - [Download here](https://www.python.org/)
+    * During installation on Windows, make sure to check the box that says **"Add Python to PATH"**.
+* A **Google Gemini API Key**.
 
-### Installation & Setup
+### 1. Clone the Repository
 
-1.  **Clone the repository:**
-    ```bash
-    git clone [https://github.com/skandaka/snack-forge.git](https://github.com/skandaka/snack-forge.git)
-    cd snack-forge
-    ```
+First, clone the project to your local machine using Git.
 
-2.  **Setup the Backend:**
-    ```bash
-    cd backend
+```bash
+git clone [https://github.com/skandaka/snack-forge.git](https://github.com/skandaka/snack-forge.git)
+cd snack-forge
+```
 
-    # Create and activate a virtual environment
-    python3 -m venv venv
-    source venv/bin/activate
+### 2. Backend Setup (Python)
 
-    # Install Python dependencies
-    pip install -r requirements.txt
-    ```
+These steps set up the Python server that handles nutrition calculations.
 
-3.  **Setup the Frontend:**
-    ```bash
-    cd ../frontend
+```bash
+# Navigate to the backend directory
+cd backend
 
-    # Install Node.js dependencies
-    npm install
+# Create a virtual environment
+# On macOS/Linux:
+python3 -m venv venv
+# On Windows:
+python -m venv venv
 
-    # Create the environment file (see below)
-    cp .env.example .env.local
-    ```
+# Activate the virtual environment
+# On macOS/Linux (zsh, bash):
+source venv/bin/activate
+# On Windows (Command Prompt):
+venv\Scripts\activate
+# On Windows (PowerShell):
+.\venv\Scripts\Activate.ps1
 
-### 🔑 Environment Variables
+# Install the required Python packages
+pip install -r requirements.txt
+```
 
-The AI features require a Google Gemini API key.
+### 3. Frontend Setup (Next.js)
 
-1.  Visit [**Google AI Studio**](https://aistudio.google.com/) to create your free API key.
-2.  Open the `.env.local` file you created in the `frontend` directory.
-3.  Add your API key to the file:
+These steps set up the user interface and AI components.
+
+```bash
+# Navigate to the frontend directory from the root
+cd ../frontend
+
+# Install Node.js dependencies
+npm install
+```
+
+### 4. Environment Variables (Critical for AI)
+
+The AI features will not work without a Google Gemini API key.
+
+1.  Visit [**Google AI Studio**](https://aistudio.google.com/) and click "**Get API key**" to create your free key.
+2.  In the `frontend` directory, **create a new file** named `.env.local`.
+3.  Open the `.env.local` file and add your API key exactly like this, replacing `YOUR_API_KEY_HERE` with the key you just copied:
     ```env
     NEXT_PUBLIC_GEMINI_API_KEY=YOUR_API_KEY_HERE
     ```
 
-### Running the Application
+### 5. Running the Application
 
-You need to run both the backend and frontend servers simultaneously in two separate terminal windows.
+You must run both the backend and frontend servers at the same time in **two separate terminal windows**.
 
-1.  **Run the Backend Server (from the `backend` directory):**
-    ```bash
-    source venv/bin/activate
-    flask run
-    ```
-    The backend will be running at `http://127.0.0.1:5000`.
+#### Terminal 1: Start the Backend
 
-2.  **Run the Frontend Server (from the `frontend` directory):**
-    ```bash
-    npm run dev
-    ```
-    The frontend will be running at `http://localhost:3000`.
+```bash
+# Make sure you are in the 'backend' directory
+cd path/to/your/project/snack-forge/backend
 
-Open `http://localhost:3000` in your browser to start forging snacks!
+# Activate the virtual environment if it's not already active
+# macOS/Linux: source venv/bin/activate
+# Windows: venv\Scripts\activate
 
+# Run the Flask server using the python module for compatibility
+# On macOS/Linux:
+python3 -m flask run
+# On Windows:
+python -m flask run
+```
+
+You should see output indicating the server is running on `http://127.0.0.1:5000`. Leave this terminal running.
+
+#### Terminal 2: Start the Frontend
+
+```bash
+# Make sure you are in the 'frontend' directory
+cd path/to/your/project/snack-forge/frontend
+
+# Run the Next.js development server
+npm run dev
+```
+
+The frontend will start up and be available at `http://localhost:3000`.
+
+Open `http://localhost:3000` in your browser. You can now start building snacks!
+
+## 🔍 Troubleshooting
+
+* **Error: `command not found: flask` or `zsh: command not found: flask`**
+    * **Cause:** The Python virtual environment is not active, or Python scripts are not in your system's PATH.
+    * **Solution:** Always run the backend server using the command `python3 -m flask run` (or `python -m flask run` on Windows). This command uses the Python interpreter to find and run the `flask` module directly, bypassing any PATH issues.
+* **AI Features Not Working / "Check your API key" error:**
+    * **Cause:** The Gemini API key is missing, incorrect, or not loaded properly.
+    * **Solution:**
+        1.  Ensure the file in the `frontend` directory is named exactly `.env.local`.
+        2.  Double-check that the variable name inside the file is `NEXT_PUBLIC_GEMINI_API_KEY`.
+        3.  Make sure you have restarted the `npm run dev` server after creating or changing the `.env.local` file.
+* **Error: `Cannot find module '...'` during `npm install` or `npm run dev`:**
+    * **Cause:** Your `node_modules` directory might be corrupted.
+    * **Solution:** Delete the `node_modules` folder and the `package-lock.json` file in the `frontend` directory, then run `npm install` again.
+
+## 🤝 Contributing
+
+Contributions are welcome! If you have ideas for new features, find a bug, or want to improve the code, please feel free to open an issue or submit a pull request.
+
+1.  Fork the Project
+2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3.  Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4.  Push to the Branch (`git push origin feature/AmazingFeature`)
+5.  Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License. See the `LICENSE` file for more details.
