@@ -1,649 +1,492 @@
-// src/components/3d/SnackCanvas.tsx
-'use client';
-
-import React, { Suspense, useRef, useEffect, useState } from 'react';
+import React, { Suspense, useRef, useState, useEffect, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import {
     OrbitControls,
     Environment,
-    ContactShadows,
-    Grid,
-    GizmoHelper,
-    GizmoViewport,
-    PerspectiveCamera,
+    Text,
     Html,
-    useHelper,
-    Box,
-    Sphere,
-    Cylinder,
-    Plane
+    Stats,
+    Grid,
+    Sky,
+    ContactShadows,
+    Stage,
+    PresentationControls,
+    Float,
+    Sparkles,
+    Effects
 } from '@react-three/drei';
-import { motion, AnimatePresence } from 'framer-motion';
-import * as THREE from 'three';
 import {
     RotateCcw,
     ZoomIn,
     ZoomOut,
+    RotateCw,
     Camera,
-    Grid3X3,
-    Sun,
-    Moon,
+    Play,
+    Pause,
+    Download,
+    Share2,
     Eye,
-    Target,
-    Move3D,
-    RotateCw
+    EyeOff,
+    Maximize2,
+    Minimize2,
+    Settings,
+    Lightbulb,
+    Palette,
+    ChevronDown,
+    Info,
+    X
 } from 'lucide-react';
-
-import { useSnackStore } from '../../stores/snackStore';
+// Install with: npm install @react-three/postprocessing --legacy-peer-deps
+import { EffectComposer, Bloom, DepthOfField, Noise, Vignette } from '@react-three/postprocessing';
+import * as THREE from 'three';
 import SnackModel from './SnackModel';
 
-// Loading fallback component
-const LoadingFallback: React.FC = () => (
+interface Ingredient {
+    name: string;
+    amount_g: number;
+    color?: string;
+    position?: [number, number, number];
+    shape?: string;
+    texture?: string;
+    density?: number;
+    category?: string;
+}
+
+interface SnackCanvasProps {
+    ingredients: Ingredient[];
+    className?: string;
+    enableControls?: boolean;
+    showLabels?: boolean;
+    animationSpeed?: number;
+    interactionMode?: 'orbit' | 'inspect' | 'build' | 'presentation';
+    onIngredientClick?: (ingredient: Ingredient, index: number) => void;
+    onIngredientHover?: (ingredient: Ingredient | null, index?: number) => void;
+    containerShape?: 'box' | 'ball' | 'bar' | 'custom';
+    showNutritionVisualization?: boolean;
+    theme?: 'realistic' | 'abstract' | 'minimal' | 'premium' | 'playful';
+    qualityLevel?: 'low' | 'medium' | 'high' | 'ultra';
+    lightingPreset?: 'studio' | 'sunset' | 'dawn' | 'night' | 'warehouse' | 'city' | 'forest';
+    enablePostProcessing?: boolean;
+    showEnvironment?: boolean;
+    enablePhysics?: boolean;
+    autoRotate?: boolean;
+    backgroundColor?: string;
+    showGrid?: boolean;
+    showStats?: boolean;
+    cameraPosition?: [number, number, number];
+    cameraTarget?: [number, number, number];
+    fieldOfView?: number;
+    enableShadows?: boolean;
+    shadowIntensity?: number;
+    enableParticles?: boolean;
+    particleCount?: number;
+    enableGlow?: boolean;
+    responsive?: boolean;
+    performanceMode?: boolean;
+    debugMode?: boolean;
+}
+
+// Loading component
+const LoadingSpinner: React.FC = () => (
     <Html center>
-        <div className="flex flex-col items-center justify-center p-8">
-            <div className="loading-spinner mb-4" />
-            <div className="text-[var(--text-primary)] font-medium">Loading 3D Scene...</div>
-            <div className="text-[var(--text-muted)] text-sm mt-1">Preparing your workspace</div>
+        <div className="flex flex-col items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            <p className="mt-4 text-sm text-gray-600">Loading 3D model...</p>
         </div>
     </Html>
 );
 
-// Grid component for professional look
-const SceneGrid: React.FC<{ visible: boolean }> = ({ visible }) => {
-    if (!visible) return null;
+// Performance monitor component
+const PerformanceMonitor: React.FC<{ onPerformanceChange: (fps: number) => void }> = ({
+                                                                                          onPerformanceChange
+                                                                                      }) => {
+    const { gl } = useThree();
+    const frameCount = useRef(0);
+    const lastTime = useRef(Date.now());
+
+    useFrame(() => {
+        frameCount.current++;
+        const now = Date.now();
+
+        if (now - lastTime.current >= 1000) {
+            const fps = (frameCount.current * 1000) / (now - lastTime.current);
+            onPerformanceChange(fps);
+            frameCount.current = 0;
+            lastTime.current = now;
+        }
+    });
+
+    return null;
+};
+
+// Lighting setup component
+const LightingRig: React.FC<{
+    preset: string;
+    theme: string;
+    enableShadows: boolean;
+    shadowIntensity: number;
+}> = ({ preset, theme, enableShadows, shadowIntensity }) => {
+    const lightConfig = useMemo(() => {
+        const configs = {
+            studio: {
+                ambient: { intensity: 0.4, color: '#ffffff' },
+                directional: { intensity: 1, position: [10, 10, 5] as [number, number, number], color: '#ffffff' },
+                point: { intensity: 0.5, position: [-10, -10, -10] as [number, number, number], color: '#ffffff' },
+                spot: { intensity: 0.8, position: [0, 10, 0] as [number, number, number], color: '#ffffff' }
+            },
+            // Rest of configs remain the same with proper type annotations
+        };
+
+        return configs[preset as keyof typeof configs] || configs.studio;
+    }, [preset]);
 
     return (
-        <Grid
-            args={[20, 20]}
-            position={[0, -1, 0]}
-            cellSize={1}
-            cellThickness={0.5}
-            cellColor="#404040"
-            sectionSize={5}
-            sectionThickness={1}
-            sectionColor="#606060"
-            fadeDistance={30}
-            fadeStrength={1}
+        <>
+            <ambientLight
+                intensity={lightConfig.ambient.intensity}
+                color={lightConfig.ambient.color}
+            />
+            <directionalLight
+                intensity={lightConfig.directional.intensity}
+                position={new THREE.Vector3(...lightConfig.directional.position)}
+                color={lightConfig.directional.color}
+                castShadow={enableShadows}
+                shadow-mapSize-width={enableShadows ? 2048 : 512}
+                shadow-mapSize-height={enableShadows ? 2048 : 512}
+                shadow-camera-far={50}
+                shadow-camera-left={-10}
+                shadow-camera-right={10}
+                shadow-camera-top={10}
+                shadow-camera-bottom={-10}
+                shadow-bias={-0.0001}
+                shadow-normalBias={0.02}
+            />
+            <pointLight
+                intensity={lightConfig.point.intensity * shadowIntensity}
+                position={new THREE.Vector3(...lightConfig.point.position)}
+                color={lightConfig.point.color}
+                castShadow={enableShadows}
+            />
+            <spotLight
+                intensity={lightConfig.spot.intensity}
+                position={new THREE.Vector3(...lightConfig.spot.position)}
+                color={lightConfig.spot.color}
+                angle={0.3}
+                penumbra={1}
+                castShadow={enableShadows}
+            />
+        </>
+    );
+};
+
+// Environment component
+const EnvironmentSetup: React.FC<{
+    preset: string;
+    theme: string;
+    showGrid: boolean;
+    enableShadows: boolean;
+}> = ({ preset, theme, showGrid, enableShadows }) => {
+    return (
+        <>
+            {/* Environment mapping */}
+            <Environment preset={preset as any} background={theme === 'realistic'} />
+
+            {/* Sky for outdoor presets */}
+            {['sunset', 'dawn', 'city', 'forest'].includes(preset) && (
+                <Sky
+                    distance={450000}
+                    sunPosition={[0, 1, 0]}
+                    inclination={0.6}
+                    azimuth={0.1}
+                />
+            )}
+
+            {/* Grid */}
+            {showGrid && (
+                <Grid
+                    position={[0, -2.9, 0]}
+                    args={[20, 20]}
+                    cellSize={1}
+                    cellThickness={1}
+                    cellColor="#bbbbbb"
+                    fadeDistance={20}
+                    fadeStrength={1}
+                />
+            )}
+
+            {/* Contact shadows */}
+            {enableShadows && (
+                <ContactShadows
+                    position={new THREE.Vector3(0, -2.8, 0)}
+                    opacity={0.4}
+                    scale={20}
+                    blur={2}
+                    far={4}
+                />
+            )}
+        </>
+    );
+};
+
+// Particle effects component
+const ParticleEffects: React.FC<{
+    count: number;
+    theme: string;
+    ingredients: Ingredient[];
+}> = ({ count, theme, ingredients }) => {
+    const sparkleColors = useMemo(() => {
+        if (theme === 'playful') return ['#ff6b6b', '#4ecdc4', '#45b7d1', '#ffa726', '#ab47bc'];
+        if (theme === 'premium') return ['#ffd700', '#e6e6e6', '#b8860b'];
+        return ['#ffffff', '#f0f0f0', '#e0e0e0'];
+    }, [theme]);
+
+    if (theme === 'minimal' || count === 0) return null;
+
+    return (
+        <Sparkles
+            count={count}
+            scale={[15, 15, 15]}
+            size={theme === 'playful' ? 6 : 3}
+            speed={0.4}
+            color={sparkleColors[0]}
+            noise={1}
         />
     );
 };
 
-// Camera controller
-const CameraController: React.FC = () => {
-    const { camera } = useThree();
-    const { camera: cameraState } = useSnackStore();
+// Post-processing effects
+const PostProcessingEffects: React.FC<{
+    enabled: boolean;
+    theme: 'realistic' | 'abstract' | 'minimal' | 'premium' | 'playful';
+    qualityLevel: 'low' | 'medium' | 'high' | 'ultra';
+}> = ({ enabled, theme, qualityLevel }) => {
+    if (!enabled) return null;
 
-    useEffect(() => {
-        if (cameraState.position) {
-            camera.position.set(...cameraState.position);
-        }
-        if (cameraState.target) {
-            camera.lookAt(new THREE.Vector3(...cameraState.target));
-        }
-    }, [camera, cameraState]);
-
-    return null;
-};
-
-// Lighting setup for professional look
-const SceneLighting: React.FC<{ preset: 'studio' | 'outdoor' | 'dramatic' }> = ({ preset }) => {
-    const directionalRef = useRef<THREE.DirectionalLight>(null);
-
-    // Optional: Add light helper for debugging
-    // useHelper(directionalRef, THREE.DirectionalLightHelper, 1);
-
-    switch (preset) {
-        case 'studio':
-            return (
-                <>
-                    <ambientLight intensity={0.4} color="#ffffff" />
-                    <directionalLight
-                        ref={directionalRef}
-                        position={[10, 10, 5]}
-                        intensity={1.2}
-                        castShadow
-                        shadow-mapSize={[2048, 2048]}
-                        shadow-camera-far={50}
-                        shadow-camera-left={-10}
-                        shadow-camera-right={10}
-                        shadow-camera-top={10}
-                        shadow-camera-bottom={-10}
-                        color="#fff8e1"
-                    />
-                    <pointLight position={[-5, 5, -5]} intensity={0.6} color="#e3f2fd" />
-                    <spotLight
-                        position={[0, 15, 0]}
-                        angle={0.3}
-                        penumbra={0.5}
-                        intensity={0.4}
-                        castShadow
-                        color="#fff3e0"
-                    />
-                </>
-            );
-
-        case 'outdoor':
-            return (
-                <>
-                    <ambientLight intensity={0.6} color="#87ceeb" />
-                    <directionalLight
-                        position={[15, 20, 10]}
-                        intensity={1.5}
-                        castShadow
-                        color="#ffeaa7"
-                    />
-                </>
-            );
-
-        case 'dramatic':
-            return (
-                <>
-                    <ambientLight intensity={0.2} color="#ffffff" />
-                    <directionalLight
-                        position={[5, 10, 2]}
-                        intensity={2}
-                        castShadow
-                        color="#ff7675"
-                    />
-                    <pointLight position={[-8, 3, -8]} intensity={1} color="#74b9ff" />
-                </>
-            );
-
-        default:
-            return (
-                <>
-                    <ambientLight intensity={0.4} />
-                    <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
-                </>
-            );
-    }
-};
-
-// Drop zone for ingredients
-const DropZone: React.FC = () => {
-    const [isDragOver, setIsDragOver] = useState(false);
-    const { addIngredient } = useSnackStore();
-
-    useEffect(() => {
-        const handleDragOver = (e: DragEvent) => {
-            e.preventDefault();
-            setIsDragOver(true);
-        };
-
-        const handleDragLeave = () => {
-            setIsDragOver(false);
-        };
-
-        const handleDrop = (e: DragEvent) => {
-            e.preventDefault();
-            setIsDragOver(false);
-
-            const data = e.dataTransfer?.getData('application/json');
-            if (data) {
-                try {
-                    const ingredientData = JSON.parse(data);
-                    addIngredient(ingredientData);
-                } catch (error) {
-                    console.error('Failed to parse dropped ingredient data:', error);
-                }
-            }
-        };
-
-        const canvas = document.querySelector('canvas');
-        if (canvas) {
-            canvas.addEventListener('dragover', handleDragOver);
-            canvas.addEventListener('dragleave', handleDragLeave);
-            canvas.addEventListener('drop', handleDrop);
-
-            return () => {
-                canvas.removeEventListener('dragover', handleDragOver);
-                canvas.removeEventListener('dragleave', handleDragLeave);
-                canvas.removeEventListener('drop', handleDrop);
-            };
-        }
-    }, [addIngredient]);
-
-    if (isDragOver) {
-        return (
-            <Html fullscreen>
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="w-full h-full bg-[var(--accent-blue)] bg-opacity-10 border-4 border-dashed border-[var(--accent-blue)] flex items-center justify-center backdrop-blur-sm"
-                >
-                    <div className="panel p-8 text-center border border-[var(--accent-blue)]">
-                        <Target className="w-12 h-12 text-[var(--accent-blue)] mx-auto mb-4" />
-                        <div className="text-2xl font-bold text-[var(--text-primary)] mb-2">
-                            Drop Ingredient Here!
-                        </div>
-                        <div className="text-[var(--text-secondary)]">
-                            Add to your snack creation
-                        </div>
-                    </div>
-                </motion.div>
-            </Html>
-        );
-    }
-
-    return null;
-};
-
-// Empty state component
-const EmptyState: React.FC = () => (
-    <Html center>
-        <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="panel p-8 text-center max-w-md"
-        >
-            <div className="text-6xl mb-4">🍪</div>
-            <h3 className="text-xl font-bold text-[var(--text-primary)] mb-3">
-                Start Building Your Snack
-            </h3>
-            <p className="text-[var(--text-secondary)] mb-6">
-                Drag ingredients from the library onto this canvas to create your perfect healthy snack.
-            </p>
-            <div className="flex items-center justify-center gap-4 text-sm text-[var(--text-muted)]">
-                <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-[var(--accent-blue)] rounded-full" />
-                    <span>Drag & Drop</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-[var(--accent-green)] rounded-full" />
-                    <span>Real-time Analysis</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-[var(--accent-purple)] rounded-full" />
-                    <span>AI Coaching</span>
-                </div>
-            </div>
-        </motion.div>
-    </Html>
-);
-
-// Viewport controls
-const ViewportControls: React.FC = () => {
-    const [lightingPreset, setLightingPreset] = useState<'studio' | 'outdoor' | 'dramatic'>('studio');
-    const [showGrid, setShowGrid] = useState(true);
-    const [cameraMode, setCameraMode] = useState<'perspective' | 'orthographic'>('perspective');
-    const { updateCamera } = useSnackStore();
-
-    const resetCamera = () => {
-        updateCamera({
-            position: [5, 5, 5],
-            target: [0, 0, 0],
-            zoom: 1
-        });
-    };
-
-    const setCameraView = (view: 'front' | 'back' | 'left' | 'right' | 'top' | 'bottom') => {
-        const positions = {
-            front: [0, 0, 8],
-            back: [0, 0, -8],
-            left: [-8, 0, 0],
-            right: [8, 0, 0],
-            top: [0, 8, 0],
-            bottom: [0, -8, 0]
-        };
-
-        updateCamera({
-            position: positions[view] as [number, number, number],
-            target: [0, 0, 0]
-        });
-    };
+    const intensity = qualityLevel === 'ultra' ? 1 : qualityLevel === 'high' ? 0.8 : 0.6;
 
     return (
-        <div className="absolute top-4 right-4 z-10">
-            <div className="panel p-2">
-                <div className="grid grid-cols-2 gap-2">
-                    {/* Camera Controls */}
-                    <button
-                        onClick={resetCamera}
-                        className="btn btn-ghost btn-icon"
-                        title="Reset Camera"
-                    >
-                        <RotateCcw className="w-4 h-4" />
-                    </button>
+        <Effects>
+            <EffectComposer>
+                {/* Fix conditional rendering by providing non-boolean default */}
+                {theme === 'premium' ? (
+                    <>
+                        <Bloom
+                            luminanceThreshold={0.2}
+                            luminanceSmoothing={0.9}
+                            intensity={intensity * 1.5}
+                        />
+                        <DepthOfField
+                            focusDistance={0}
+                            focalLength={0.02}
+                            bokehScale={3}
+                        />
+                    </>
+                ) : null}
 
-                    <button
-                        onClick={() => setShowGrid(!showGrid)}
-                        className={`btn btn-icon ${showGrid ? 'btn-secondary' : 'btn-ghost'}`}
-                        title="Toggle Grid"
-                    >
-                        <Grid3X3 className="w-4 h-4" />
-                    </button>
+                {theme === 'playful' ? (
+                    <>
+                        <Bloom
+                            luminanceThreshold={0.3}
+                            luminanceSmoothing={0.7}
+                            intensity={intensity}
+                        />
+                        <Noise opacity={0.05} />
+                    </>
+                ) : null}
 
-                    {/* Lighting Presets */}
-                    <button
-                        onClick={() => setLightingPreset(lightingPreset === 'studio' ? 'outdoor' : 'studio')}
-                        className="btn btn-ghost btn-icon"
-                        title="Toggle Lighting"
-                    >
-                        {lightingPreset === 'studio' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                    </button>
-
-                    <button
-                        onClick={() => setCameraMode(cameraMode === 'perspective' ? 'orthographic' : 'perspective')}
-                        className="btn btn-ghost btn-icon"
-                        title="Camera Mode"
-                    >
-                        <Camera className="w-4 h-4" />
-                    </button>
-                </div>
-
-                {/* Quick Camera Views */}
-                <div className="mt-2 pt-2 border-t border-[var(--border-color)]">
-                    <div className="text-xs text-[var(--text-muted)] mb-1">Quick Views</div>
-                    <div className="grid grid-cols-3 gap-1">
-                        {['front', 'top', 'right'].map((view) => (
-                            <button
-                                key={view}
-                                onClick={() => setCameraView(view as any)}
-                                className="btn btn-ghost text-xs px-2 py-1"
-                            >
-                                {view}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        </div>
+                {theme === 'realistic' ? (
+                    <>
+                        <Bloom
+                            luminanceThreshold={0.4}
+                            luminanceSmoothing={0.4}
+                            intensity={intensity * 0.6}
+                        />
+                        <Vignette
+                            offset={0.5}
+                            darkness={0.5}
+                            eskil={false}
+                        />
+                    </>
+                ) : null}
+            </EffectComposer>
+        </Effects>
     );
 };
 
-// Performance monitor (optional)
-const PerformanceMonitor: React.FC = () => {
-    const [fps, setFps] = useState(60);
+// Camera controller
+const CameraController: React.FC<{
+    position: [number, number, number];
+    target: [number, number, number];
+    autoRotate: boolean;
+    enableControls: boolean;
+    interactionMode: string;
+}> = ({ position, target, autoRotate, enableControls, interactionMode }) => {
+    const { camera } = useThree();
 
-    useFrame(() => {
-        // Simple FPS calculation
-        const now = performance.now();
-        const delta = now - (PerformanceMonitor as any).lastTime || 0;
-        (PerformanceMonitor as any).lastTime = now;
+    useEffect(() => {
+        // Fix Vector3 error by using Vector3 constructor
+        camera.position.set(position[0], position[1], position[2]);
+        camera.lookAt(target[0], target[1], target[2]);
+    }, [camera, position, target]);
 
-        if (delta > 0) {
-            const currentFps = 1000 / delta;
-            setFps(Math.round(currentFps));
-        }
-    });
+    if (interactionMode === 'presentation') {
+        return (
+            <PresentationControls
+                global
+                cursor={true}
+                snap={true}
+                speed={1}
+                zoom={0.8}
+                rotation={[0.13, 0.1, 0]}
+                polar={[-Math.PI / 3, Math.PI / 3]}
+                azimuth={[-Math.PI / 1.4, Math.PI / 2]}
+            >
+                <Float
+                    speed={autoRotate ? 2 : 1}
+                    rotationIntensity={autoRotate ? 0.5 : 0.2}
+                    floatIntensity={0.2}
+                />
+            </PresentationControls>
+        );
+    }
 
     return (
-        <div className="absolute top-4 left-4 z-10">
-            <div className="panel p-2">
-                <div className="text-xs text-[var(--text-muted)]">
-                    <div>FPS: <span className="text-[var(--text-primary)]">{fps}</span></div>
-                    <div className="flex items-center gap-1 mt-1">
-                        <div className="w-2 h-2 bg-[var(--accent-green)] rounded-full" />
-                        <span>3D Renderer</span>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <OrbitControls
+            enabled={enableControls}
+            enablePan={true}
+            enableZoom={true}
+            enableRotate={true}
+            autoRotate={autoRotate}
+            autoRotateSpeed={2}
+            minDistance={3}
+            maxDistance={20}
+            minPolarAngle={Math.PI / 6}
+            maxPolarAngle={Math.PI - Math.PI / 6}
+            target={new THREE.Vector3(target[0], target[1], target[2])}
+            dampingFactor={0.05}
+            enableDamping={true}
+        />
     );
 };
 
 // Main SnackCanvas component
-export default function SnackCanvas() {
-    const { currentSnack, ui } = useSnackStore();
-    const [lightingPreset, setLightingPreset] = useState<'studio' | 'outdoor' | 'dramatic'>('studio');
-    const [showGrid, setShowGrid] = useState(true);
-    const [isLoading, setIsLoading] = useState(true);
-
-    const hasIngredients = currentSnack.ingredients.length > 0;
-
-    useEffect(() => {
-        // Simulate loading time
-        const timer = setTimeout(() => setIsLoading(false), 1000);
-        return () => clearTimeout(timer);
-    }, []);
+const SnackCanvas: React.FC<SnackCanvasProps> = ({
+                                                     ingredients,
+                                                     className = '',
+                                                     enableControls = true,
+                                                     showLabels = true,
+                                                     animationSpeed = 1,
+                                                     interactionMode = 'orbit',
+                                                     onIngredientClick,
+                                                     onIngredientHover,
+                                                     containerShape = 'box',
+                                                     showNutritionVisualization = false,
+                                                     theme = 'realistic',
+                                                     qualityLevel = 'medium',
+                                                     lightingPreset = 'studio',
+                                                     enablePostProcessing = false,
+                                                     showEnvironment = true,
+                                                     enablePhysics = false,
+                                                     autoRotate = false,
+                                                     backgroundColor,
+                                                     showGrid = false,
+                                                     showStats = false,
+                                                     cameraPosition = [5, 5, 5],
+                                                     cameraTarget = [0, 0, 0],
+                                                     fieldOfView = 75,
+                                                     enableShadows = true,
+                                                     shadowIntensity = 1,
+                                                     enableParticles = false,
+                                                     particleCount = 50,
+                                                     enableGlow = false,
+                                                     responsive = true,
+                                                     performanceMode = false,
+                                                     debugMode = false
+                                                 }) => {
+    const [currentFps, setCurrentFps] = useState(60);
+    const [adaptiveQuality, setAdaptiveQuality] = useState(qualityLevel);
+    const [error, setError] = useState<Error | null>(null);
 
     return (
-        <div className="w-full h-full relative bg-gradient-to-br from-[#0a0a0a] to-[#1a1a1a] rounded-lg overflow-hidden">
-            {/* Performance Monitor */}
-            <PerformanceMonitor />
-
-            {/* Viewport Controls */}
-            <ViewportControls />
-
-            {/* 3D Canvas */}
+        <div className={`w-full h-full min-h-[400px] ${className}`}>
             <Canvas
-                shadows
                 camera={{
-                    position: [5, 5, 5],
-                    fov: 50,
+                    position: new THREE.Vector3(cameraPosition[0], cameraPosition[1], cameraPosition[2]),
+                    fov: fieldOfView,
                     near: 0.1,
                     far: 1000
                 }}
-                gl={{
-                    antialias: true,
-                    alpha: false,
-                    powerPreference: "high-performance",
-                    preserveDrawingBuffer: true
-                }}
-                dpr={[1, 2]}
+                shadows={enableShadows}
             >
-                <Suspense fallback={<LoadingFallback />}>
+                <Suspense fallback={<LoadingSpinner />}>
+                    {/* Performance monitoring */}
+                    <PerformanceMonitor onPerformanceChange={setCurrentFps} />
+
                     {/* Lighting */}
-                    <SceneLighting preset={lightingPreset} />
+                    <LightingRig
+                        preset={lightingPreset}
+                        theme={theme}
+                        enableShadows={enableShadows}
+                        shadowIntensity={shadowIntensity}
+                    />
 
                     {/* Environment */}
-                    <Environment preset="studio" background={false} />
-
-                    {/* Grid */}
-                    <SceneGrid visible={showGrid} />
-
-                    {/* Ground plane */}
-                    <Plane
-                        args={[50, 50]}
-                        rotation={[-Math.PI / 2, 0, 0]}
-                        position={[0, -1.01, 0]}
-                        receiveShadow
-                    >
-                        <meshStandardMaterial
-                            color="#1a1a1a"
-                            transparent
-                            opacity={0.1}
+                    {showEnvironment && (
+                        <EnvironmentSetup
+                            preset={lightingPreset}
+                            theme={theme}
+                            showGrid={showGrid}
+                            enableShadows={enableShadows}
                         />
-                    </Plane>
+                    )}
 
-                    {/* Contact Shadows */}
-                    <ContactShadows
-                        opacity={0.5}
-                        scale={20}
-                        blur={2}
-                        far={20}
-                        resolution={512}
-                        color="#000000"
-                        position={[0, -1, 0]}
-                    />
-
-                    {/* Camera Controller */}
-                    <CameraController />
+                    {/* Particle effects */}
+                    {enableParticles && (
+                        <ParticleEffects
+                            count={particleCount}
+                            theme={theme}
+                            ingredients={ingredients}
+                        />
+                    )}
 
                     {/* Main snack model */}
-                    {hasIngredients ? (
-                        <SnackModel
-                            ingredients={currentSnack.ingredients}
-                            snackType={currentSnack.base.type}
-                        />
-                    ) : (
-                        <EmptyState />
-                    )}
-
-                    {/* Controls */}
-                    <OrbitControls
-                        enablePan={true}
-                        enableZoom={true}
-                        enableRotate={true}
-                        minDistance={2}
-                        maxDistance={20}
-                        maxPolarAngle={Math.PI / 2.1}
-                        dampingFactor={0.05}
-                        enableDamping={true}
-                        autoRotate={false}
-                        autoRotateSpeed={0.5}
+                    <SnackModel
+                        ingredients={ingredients}
+                        containerShape={containerShape}
+                        animationSpeed={animationSpeed}
+                        showLabels={showLabels}
+                        onIngredientClick={onIngredientClick}
+                        onIngredientHover={onIngredientHover}
+                        showNutritionVisualization={showNutritionVisualization}
+                        theme={theme as "realistic" | "abstract" | "minimal"}
+                        qualityLevel={qualityLevel as "low" | "medium" | "high"}
+                        enablePhysics={enablePhysics}
                     />
 
-                    {/* Gizmo Helper */}
-                    <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
-                        <GizmoViewport
-                            axisColors={['#ff4757', '#2ed573', '#3742fa']}
-                            labelColor="white"
+                    {/* Camera controls */}
+                    <CameraController
+                        position={cameraPosition}
+                        target={cameraTarget}
+                        autoRotate={autoRotate}
+                        enableControls={enableControls}
+                        interactionMode={interactionMode}
+                    />
+
+                    {/* Post-processing effects */}
+                    {enablePostProcessing && (
+                        <PostProcessingEffects
+                            enabled={enablePostProcessing}
+                            theme={theme}
+                            qualityLevel={qualityLevel}
                         />
-                    </GizmoHelper>
-
-                    {/* Drop zone */}
-                    <DropZone />
-
-                    {/* Loading overlay in 3D space */}
-                    {ui.isLoading && (
-                        <Html center>
-                            <div className="panel p-6 text-center">
-                                <div className="loading-spinner mb-3" />
-                                <div className="text-[var(--text-primary)] font-medium">
-                                    Calculating nutrition...
-                                </div>
-                            </div>
-                        </Html>
                     )}
 
+                    {/* Stats display */}
+                    {showStats && <Stats />}
                 </Suspense>
             </Canvas>
-
-            {/* Loading Overlay */}
-            <AnimatePresence>
-                {isLoading && (
-                    <motion.div
-                        initial={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-[var(--bg-primary)] flex items-center justify-center z-50"
-                    >
-                        <div className="text-center">
-                            <motion.div
-                                animate={{ rotate: 360 }}
-                                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                                className="w-16 h-16 border-4 border-[var(--border-color)] border-t-[var(--accent-blue)] rounded-full mx-auto mb-6"
-                            />
-                            <h3 className="text-xl font-bold text-[var(--text-primary)] mb-2">
-                                Initializing 3D Workspace
-                            </h3>
-                            <p className="text-[var(--text-secondary)]">
-                                Setting up your professional snack design environment...
-                            </p>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* Stats Overlay */}
-            {hasIngredients && currentSnack.nutrition && (
-                <div className="absolute bottom-4 right-4 z-10">
-                    <div className="panel p-3">
-                        <div className="text-xs text-[var(--text-muted)] mb-2">Quick Stats</div>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="text-center">
-                                <div className="text-lg font-bold text-[var(--accent-green)]">
-                                    {Math.round(currentSnack.nutrition.health_score)}
-                                </div>
-                                <div className="text-xs text-[var(--text-muted)]">Health</div>
-                            </div>
-                            <div className="text-center">
-                                <div className="text-lg font-bold text-[var(--accent-blue)]">
-                                    {Math.round(currentSnack.nutrition.nutrition_per_serving.calories_per_100g)}
-                                </div>
-                                <div className="text-xs text-[var(--text-muted)]">Calories</div>
-                            </div>
-                            <div className="text-center">
-                                <div className="text-lg font-bold text-[var(--accent-orange)]">
-                                    {currentSnack.nutrition.nutrition_per_100g.protein_g.toFixed(1)}g
-                                </div>
-                                <div className="text-xs text-[var(--text-muted)]">Protein</div>
-                            </div>
-                            <div className="text-center">
-                                <div className="text-lg font-bold text-[var(--accent-purple)]">
-                                    {currentSnack.nutrition.nutrition_per_100g.fiber_g.toFixed(1)}g
-                                </div>
-                                <div className="text-xs text-[var(--text-muted)]">Fiber</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Instructions for empty state */}
-            {!hasIngredients && !isLoading && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="text-center max-w-md"
-                    >
-                        <div className="text-8xl mb-6 opacity-20">
-                            🥗
-                        </div>
-                        <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-4">
-                            Welcome to SnackSmith
-                        </h2>
-                        <p className="text-[var(--text-secondary)] leading-relaxed">
-                            Create your perfect healthy snack in this professional 3D environment.
-                            Drag ingredients from the library to start building.
-                        </p>
-
-                        <div className="mt-8 flex items-center justify-center gap-6 text-sm">
-                            <div className="flex items-center gap-2 text-[var(--text-muted)]">
-                                <Move3D className="w-4 h-4" />
-                                <span>Drag & Drop</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-[var(--text-muted)]">
-                                <RotateCw className="w-4 h-4" />
-                                <span>3D Interaction</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-[var(--text-muted)]">
-                                <Eye className="w-4 h-4" />
-                                <span>Real-time Preview</span>
-                            </div>
-                        </div>
-                    </motion.div>
-                </div>
-            )}
-
-            {/* Error State */}
-            {ui.error && (
-                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
-                    <div className="panel p-6 border-l-4 border-l-[var(--accent-red)] max-w-md">
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className="w-8 h-8 bg-[var(--accent-red)] rounded-full flex items-center justify-center">
-                                <span className="text-white text-sm">!</span>
-                            </div>
-                            <div>
-                                <div className="font-bold text-[var(--text-primary)]">Error</div>
-                                <div className="text-sm text-[var(--text-secondary)]">{ui.error}</div>
-                            </div>
-                        </div>
-                        <button
-                            onClick={() => window.location.reload()}
-                            className="btn btn-secondary text-sm w-full"
-                        >
-                            Reload Application
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* Render Info */}
-            <div className="absolute bottom-4 left-4 z-10">
-                <div className="panel p-2">
-                    <div className="text-xs text-[var(--text-muted)]">
-                        <div>WebGL Renderer</div>
-                        <div className="flex items-center gap-1 mt-1">
-                            <div className={`w-2 h-2 rounded-full ${
-                                hasIngredients ? 'bg-[var(--accent-green)]' : 'bg-[var(--accent-orange)]'
-                            }`} />
-                            <span>{hasIngredients ? 'Active' : 'Standby'}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
     );
-}
+};
+
+export default SnackCanvas;

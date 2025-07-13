@@ -238,9 +238,13 @@ const IngredientCard: React.FC<{
             onHoverStart={() => setIsHovered(true)}
             onHoverEnd={() => setIsHovered(false)}
             className="group relative bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] hover:border-[var(--border-light)] transition-all duration-200 overflow-hidden cursor-grab active:cursor-grabbing"
-            draggable
-            onDragStart={handleDragStart}
         >
+            {/* Drag Handle */}
+            <div
+                className="absolute top-2 left-2 z-10 p-1 rounded-full bg-[var(--bg-hover)] text-[var(--text-muted)] hover:bg-[var(--bg-active)] cursor-grab"
+                draggable
+                onDragStart={handleDragStart}
+            >
             {/* Popularity Badge */}
             {visual.popularity > 85 && (
                 <div className="absolute top-2 left-2 z-10">
@@ -387,7 +391,9 @@ const IngredientCard: React.FC<{
                     />
                 )}
             </AnimatePresence>
+            </div>
         </motion.div>
+
     );
 };
 
