@@ -1,555 +1,771 @@
-// src/components/3d/SnackCanvas.tsx
-import React, { Suspense, useRef, useEffect, useState } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+// src/components/ui/IngredientLibrary.tsx
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-    OrbitControls,
-    Environment,
-    ContactShadows,
-    Text,
-    Html,
-    useTexture,
-    Sphere,
-    Box,
-    Cylinder
-} from '@react-three/drei';
-import { useSnackStore } from '../../stores/snackStore';
-import { Ingredient } from '../../types/snack';
-import * as THREE from 'three';
-import {
-    RotateCcw,
-    ZoomIn,
-    ZoomOut,
-    RotateCw,
-    Camera,
-    Play,
-    Pause
+    Search,
+    Filter,
+    Star,
+    Plus,
+    Zap,
+    Leaf,
+    Heart,
+    Clock,
+    TrendingUp,
+    ChevronDown,
+    Grid3X3,
+    List,
+    X,
+    Info,
+    Sparkles,
+    Target
 } from 'lucide-react';
+import { useSnackStore } from '../../stores/snackStore';
+import { motion, AnimatePresence } from 'framer-motion';
 
-// Ingredient 3D Models
-interface Ingredient3DProps {
-    ingredient: Ingredient;
-    position: [number, number, number];
-    scale?: [number, number, number];
-    onClick?: () => void;
+// Enhanced ingredient data with visual properties
+const INGREDIENT_VISUALS = {
+    almonds: {
+        emoji: '🌰',
+        color: '#D2B48C',
+        gradient: 'from-amber-100 to-amber-200',
+        category: 'Nuts & Seeds',
+        description: 'Rich, buttery nuts packed with vitamin E',
+        benefits: ['Heart Healthy', 'High Protein', 'Good Fats'],
+        popularity: 95,
+        texture: 'Crunchy'
+    },
+    walnuts: {
+        emoji: '🥜',
+        color: '#8B4513',
+        gradient: 'from-amber-200 to-orange-200',
+        category: 'Nuts & Seeds',
+        description: 'Brain-boosting nuts with omega-3s',
+        benefits: ['Omega-3', 'Brain Health', 'Antioxidants'],
+        popularity: 88,
+        texture: 'Crunchy'
+    },
+    cashews: {
+        emoji: '🥜',
+        color: '#F5DEB3',
+        gradient: 'from-yellow-100 to-amber-100',
+        category: 'Nuts & Seeds',
+        description: 'Creamy, mild nuts perfect for blending',
+        benefits: ['Creamy Texture', 'Minerals', 'Heart Healthy'],
+        popularity: 82,
+        texture: 'Creamy'
+    },
+    dates: {
+        emoji: '🌰',
+        color: '#8B4513',
+        gradient: 'from-orange-200 to-amber-300',
+        category: 'Natural Sweeteners',
+        description: 'Nature\'s candy with natural sweetness',
+        benefits: ['Natural Sugar', 'Fiber', 'Energy Boost'],
+        popularity: 92,
+        texture: 'Chewy'
+    },
+    cranberries_dried: {
+        emoji: '🔴',
+        color: '#DC143C',
+        gradient: 'from-red-200 to-pink-200',
+        category: 'Dried Fruits',
+        description: 'Tart berries loaded with antioxidants',
+        benefits: ['Antioxidants', 'Vitamin C', 'Urinary Health'],
+        popularity: 76,
+        texture: 'Chewy'
+    },
+    blueberries_dried: {
+        emoji: '🫐',
+        color: '#4169E1',
+        gradient: 'from-blue-200 to-purple-200',
+        category: 'Dried Fruits',
+        description: 'Superfruit berries with maximum antioxidants',
+        benefits: ['Superfood', 'Brain Health', 'Anti-aging'],
+        popularity: 89,
+        texture: 'Chewy'
+    },
+    dark_chocolate_70: {
+        emoji: '🍫',
+        color: '#4A2C2A',
+        gradient: 'from-amber-900 to-orange-900',
+        category: 'Chocolate',
+        description: 'Rich dark chocolate with flavonoids',
+        benefits: ['Antioxidants', 'Mood Boost', 'Heart Health'],
+        popularity: 94,
+        texture: 'Smooth'
+    },
+    oats: {
+        emoji: '🌾',
+        color: '#F5DEB3',
+        gradient: 'from-yellow-100 to-orange-100',
+        category: 'Whole Grains',
+        description: 'Heart-healthy whole grain with beta-glucan',
+        benefits: ['Heart Health', 'Sustained Energy', 'Fiber'],
+        popularity: 91,
+        texture: 'Chewy'
+    },
+    quinoa: {
+        emoji: '🌾',
+        color: '#DDBF94',
+        gradient: 'from-yellow-200 to-orange-200',
+        category: 'Whole Grains',
+        description: 'Complete protein superfood grain',
+        benefits: ['Complete Protein', 'Gluten-Free', 'Superfood'],
+        popularity: 78,
+        texture: 'Fluffy'
+    },
+    protein_powder_plant: {
+        emoji: '💪',
+        color: '#E6E6FA',
+        gradient: 'from-green-100 to-emerald-200',
+        category: 'Protein',
+        description: 'Plant-based protein for muscle building',
+        benefits: ['High Protein', 'Plant-Based', 'Muscle Support'],
+        popularity: 85,
+        texture: 'Powdery'
+    },
+    protein_powder_whey: {
+        emoji: '💪',
+        color: '#E6E6FA',
+        gradient: 'from-blue-100 to-cyan-200',
+        category: 'Protein',
+        description: 'Fast-absorbing whey protein',
+        benefits: ['Fast Absorption', 'Complete Protein', 'Post-Workout'],
+        popularity: 87,
+        texture: 'Powdery'
+    },
+    chia_seeds: {
+        emoji: '⚫',
+        color: '#2F2F2F',
+        gradient: 'from-gray-200 to-gray-300',
+        category: 'Superfoods',
+        description: 'Tiny seeds packed with omega-3s and fiber',
+        benefits: ['Omega-3', 'High Fiber', 'Superfood'],
+        popularity: 83,
+        texture: 'Gel-like'
+    },
+    flax_seeds: {
+        emoji: '🟤',
+        color: '#8B4513',
+        gradient: 'from-amber-200 to-orange-300',
+        category: 'Superfoods',
+        description: 'Lignans and omega-3 rich seeds',
+        benefits: ['Lignans', 'Omega-3', 'Hormone Support'],
+        popularity: 74,
+        texture: 'Nutty'
+    },
+    honey: {
+        emoji: '🍯',
+        color: '#FFD700',
+        gradient: 'from-yellow-200 to-amber-300',
+        category: 'Natural Sweeteners',
+        description: 'Pure liquid gold with enzymes',
+        benefits: ['Natural Enzymes', 'Quick Energy', 'Antioxidants'],
+        popularity: 90,
+        texture: 'Liquid'
+    },
+    maple_syrup: {
+        emoji: '🍁',
+        color: '#DEB887',
+        gradient: 'from-amber-200 to-orange-300',
+        category: 'Natural Sweeteners',
+        description: 'Pure maple tree sap with minerals',
+        benefits: ['Natural Minerals', 'Antioxidants', 'Maple Flavor'],
+        popularity: 79,
+        texture: 'Syrup'
+    },
+    coconut_flakes: {
+        emoji: '🥥',
+        color: '#FFFFFF',
+        gradient: 'from-white to-gray-100',
+        category: 'Tropical',
+        description: 'Tropical coconut with MCT oils',
+        benefits: ['MCT Oils', 'Tropical Flavor', 'Quick Energy'],
+        popularity: 81,
+        texture: 'Flaky'
+    },
+    cinnamon: {
+        emoji: '🌰',
+        color: '#D2691E',
+        gradient: 'from-orange-200 to-red-200',
+        category: 'Spices',
+        description: 'Warming spice that regulates blood sugar',
+        benefits: ['Blood Sugar', 'Anti-inflammatory', 'Warming'],
+        popularity: 86,
+        texture: 'Powdery'
+    },
+    vanilla_extract: {
+        emoji: '🌸',
+        color: '#F5DEB3',
+        gradient: 'from-purple-100 to-pink-100',
+        category: 'Flavorings',
+        description: 'Pure vanilla with complex floral notes',
+        benefits: ['Natural Flavor', 'Aromatherapy', 'No Calories'],
+        popularity: 88,
+        texture: 'Liquid'
+    }
+};
+
+const CATEGORIES = [
+    { name: 'All', icon: Grid3X3, count: 0 },
+    { name: 'Nuts & Seeds', icon: Zap, count: 0 },
+    { name: 'Dried Fruits', icon: Heart, count: 0 },
+    { name: 'Protein', icon: Target, count: 0 },
+    { name: 'Whole Grains', icon: Leaf, count: 0 },
+    { name: 'Natural Sweeteners', icon: Sparkles, count: 0 },
+    { name: 'Superfoods', icon: Star, count: 0 },
+    { name: 'Chocolate', icon: Heart, count: 0 },
+    { name: 'Spices', icon: Leaf, count: 0 },
+    { name: 'Tropical', icon: Heart, count: 0 }
+];
+
+interface IngredientCardProps {
+    ingredient: {
+        name: string;
+        nutrition: any;
+        properties: any;
+        category: string;
+    };
+    visual: any;
+    isFavorite: boolean;
+    onAdd: (amount: number) => void;
+    onToggleFavorite: () => void;
+    onShowDetails: () => void;
 }
 
-const Ingredient3D: React.FC<Ingredient3DProps> = ({
-                                                       ingredient,
-                                                       position,
-                                                       scale = [1, 1, 1],
-                                                       onClick
-                                                   }) => {
-    const meshRef = useRef<THREE.Mesh>(null);
-    const [hovered, setHovered] = useState(false);
+const IngredientCard: React.FC<IngredientCardProps> = ({
+                                                           ingredient,
+                                                           visual,
+                                                           isFavorite,
+                                                           onAdd,
+                                                           onToggleFavorite,
+                                                           onShowDetails
+                                                       }) => {
+    const [amount, setAmount] = useState(25);
+    const [isHovered, setIsHovered] = useState(false);
+    const [isAdding, setIsAdding] = useState(false);
 
-    useFrame((state) => {
-        if (meshRef.current) {
-            // Gentle floating animation
-            meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2) * 0.02;
+    const displayName = ingredient.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
-            // Slight rotation for visual interest
-            meshRef.current.rotation.y += 0.005;
-
-            // Scale on hover
-            const targetScale = hovered ? 1.1 : 1;
-            meshRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
-        }
-    });
-
-    const getIngredientGeometry = () => {
-        const category = ingredient.category || 'unknown';
-        const name = ingredient.name.toLowerCase();
-
-        // Different shapes based on ingredient type
-        if (category === 'nuts_seeds' || name.includes('nut') || name.includes('seed')) {
-            return <Sphere args={[0.1, 8, 6]} />;
-        } else if (category === 'fruits' || name.includes('berr') || name.includes('date')) {
-            return <Sphere args={[0.08, 6, 6]} />;
-        } else if (category === 'chocolate' || name.includes('chocolate')) {
-            return <Box args={[0.12, 0.06, 0.12]} />;
-        } else if (category === 'grains' || name.includes('oat') || name.includes('quinoa')) {
-            return <Cylinder args={[0.05, 0.05, 0.02, 6]} />;
-        } else if (category === 'protein' || name.includes('protein')) {
-            return <Box args={[0.15, 0.15, 0.15]} />;
-        } else {
-            return <Sphere args={[0.08, 8, 6]} />;
-        }
+    const handleAdd = async () => {
+        setIsAdding(true);
+        await onAdd(amount);
+        setTimeout(() => setIsAdding(false), 500);
     };
 
-    const getIngredientColor = () => {
-        const name = ingredient.name.toLowerCase();
-
-        // Color mapping based on ingredient
-        if (name.includes('almond')) return '#D2B48C';
-        if (name.includes('walnut')) return '#8B4513';
-        if (name.includes('cashew')) return '#F5DEB3';
-        if (name.includes('date')) return '#8B4513';
-        if (name.includes('cranberr')) return '#DC143C';
-        if (name.includes('blueberr')) return '#4169E1';
-        if (name.includes('chocolate')) return '#4A2C2A';
-        if (name.includes('oat')) return '#F5DEB3';
-        if (name.includes('quinoa')) return '#DDBF94';
-        if (name.includes('protein')) return '#E6E6FA';
-        if (name.includes('chia')) return '#2F2F2F';
-        if (name.includes('flax')) return '#8B4513';
-        if (name.includes('honey')) return '#FFD700';
-        if (name.includes('coconut')) return '#FFFFFF';
-        if (name.includes('cinnamon')) return '#D2691E';
-
-        return '#CD853F'; // Default tan color
-    };
+    const nutritionScore = Math.round(
+        (ingredient.nutrition.protein_g * 2 +
+            ingredient.nutrition.fiber_g * 3 +
+            (100 - ingredient.nutrition.sugars_g)) / 3
+    );
 
     return (
-        <mesh
-            ref={meshRef}
-            position={position}
-            scale={scale}
-            onClick={onClick}
-            onPointerOver={() => setHovered(true)}
-            onPointerOut={() => setHovered(false)}
-            castShadow
-            receiveShadow
+        <motion.div
+            layout
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            whileHover={{ scale: 1.02, y: -2 }}
+            onHoverStart={() => setIsHovered(true)}
+            onHoverEnd={() => setIsHovered(false)}
+            className={`relative bg-gradient-to-br ${visual.gradient} rounded-xl border-2 border-white/50 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group`}
         >
-            {getIngredientGeometry()}
-            <meshStandardMaterial
-                color={getIngredientColor()}
-                roughness={0.3}
-                metalness={0.1}
-            />
+            {/* Background Pattern */}
+            <div className="absolute inset-0 opacity-10">
+                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
+                <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-10 translate-x-10" />
+            </div>
 
-            {/* Ingredient label on hover */}
-            {hovered && (
-                <Html distanceFactor={10}>
-                    <div className="bg-black bg-opacity-75 text-white px-2 py-1 rounded text-xs whitespace-nowrap pointer-events-none">
-                        {ingredient.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        <br />
-                        <span className="text-gray-300">{ingredient.amount_g}g</span>
+            {/* Popularity Badge */}
+            {visual.popularity > 85 && (
+                <div className="absolute top-2 left-2 z-10">
+                    <div className="bg-red-500 text-white text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1">
+                        <TrendingUp className="w-3 h-3" />
+                        Popular
                     </div>
-                </Html>
+                </div>
             )}
-        </mesh>
+
+            {/* Favorite Button */}
+            <button
+                onClick={onToggleFavorite}
+                className={`absolute top-2 right-2 z-10 p-1.5 rounded-full transition-all duration-200 ${
+                    isFavorite
+                        ? 'bg-red-500 text-white shadow-lg'
+                        : 'bg-white/80 text-gray-600 hover:bg-white'
+                }`}
+            >
+                <Star className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
+            </button>
+
+            {/* Main Content */}
+            <div className="relative p-4">
+                {/* Ingredient Visual */}
+                <div className="text-center mb-3">
+                    <div className="text-4xl mb-2 transform transition-transform duration-300 group-hover:scale-110">
+                        {visual.emoji}
+                    </div>
+
+                    {/* Name */}
+                    <h3 className="font-bold text-gray-900 text-sm leading-tight mb-1">
+                        {displayName}
+                    </h3>
+
+                    {/* Category */}
+                    <p className="text-xs text-gray-600 font-medium">
+                        {visual.category}
+                    </p>
+                </div>
+
+                {/* Quick Stats */}
+                <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
+                    <div className="bg-white/60 rounded-lg p-2 text-center">
+                        <div className="font-bold text-gray-900">
+                            {ingredient.nutrition.protein_g.toFixed(1)}g
+                        </div>
+                        <div className="text-gray-600">Protein</div>
+                    </div>
+                    <div className="bg-white/60 rounded-lg p-2 text-center">
+                        <div className="font-bold text-gray-900">
+                            {Math.round(ingredient.nutrition.calories_per_100g)}
+                        </div>
+                        <div className="text-gray-600">Calories</div>
+                    </div>
+                </div>
+
+                {/* Benefits */}
+                <div className="mb-3">
+                    <div className="flex flex-wrap gap-1">
+                        {visual.benefits.slice(0, 2).map((benefit: string) => (
+                            <span
+                                key={benefit}
+                                className="text-xs bg-white/70 text-gray-700 px-2 py-0.5 rounded-full font-medium"
+                            >
+                                {benefit}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Nutrition Score */}
+                <div className="mb-3">
+                    <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="text-gray-600 font-medium">Health Score</span>
+                        <span className="font-bold text-gray-900">{nutritionScore}/100</span>
+                    </div>
+                    <div className="w-full bg-white/50 rounded-full h-1.5">
+                        <div
+                            className={`h-1.5 rounded-full transition-all duration-500 ${
+                                nutritionScore >= 80 ? 'bg-green-500' :
+                                    nutritionScore >= 60 ? 'bg-yellow-500' :
+                                        nutritionScore >= 40 ? 'bg-orange-500' : 'bg-red-500'
+                            }`}
+                            style={{ width: `${nutritionScore}%` }}
+                        />
+                    </div>
+                </div>
+
+                {/* Amount Selector */}
+                <div className="mb-3">
+                    <label className="text-xs text-gray-600 font-medium mb-1 block">Amount</label>
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="range"
+                            min="5"
+                            max="100"
+                            step="5"
+                            value={amount}
+                            onChange={(e) => setAmount(Number(e.target.value))}
+                            className="flex-1 h-2 bg-white/50 rounded-lg appearance-none cursor-pointer slider"
+                        />
+                        <span className="text-sm font-bold text-gray-900 w-8 text-right">
+                            {amount}g
+                        </span>
+                    </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="space-y-2">
+                    <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={handleAdd}
+                        disabled={isAdding}
+                        className={`w-full py-2.5 rounded-lg font-semibold text-sm transition-all duration-200 ${
+                            isAdding
+                                ? 'bg-green-500 text-white'
+                                : 'bg-gray-900 text-white hover:bg-gray-800 shadow-lg hover:shadow-xl'
+                        }`}
+                    >
+                        <div className="flex items-center justify-center gap-2">
+                            {isAdding ? (
+                                <>
+                                    <motion.div
+                                        animate={{ rotate: 360 }}
+                                        transition={{ duration: 0.5, repeat: Infinity, ease: "linear" }}
+                                        className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                                    />
+                                    Added!
+                                </>
+                            ) : (
+                                <>
+                                    <Plus className="w-4 h-4" />
+                                    Add to Snack
+                                </>
+                            )}
+                        </div>
+                    </motion.button>
+
+                    <button
+                        onClick={onShowDetails}
+                        className="w-full py-2 bg-white/70 hover:bg-white text-gray-700 font-medium text-sm rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                    >
+                        <Info className="w-4 h-4" />
+                        Details
+                    </button>
+                </div>
+            </div>
+
+            {/* Hover Overlay */}
+            <AnimatePresence>
+                {isHovered && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 bg-black/5 pointer-events-none"
+                    />
+                )}
+            </AnimatePresence>
+        </motion.div>
     );
 };
 
-// Snack Base 3D Models
-interface SnackBaseProps {
-    type: string;
-    ingredients: Ingredient[];
-}
+const FilterButton: React.FC<{
+    category: any;
+    isActive: boolean;
+    count: number;
+    onClick: () => void;
+}> = ({ category, isActive, count, onClick }) => {
+    const Icon = category.icon;
 
-const SnackBase: React.FC<SnackBaseProps> = ({ type, ingredients }) => {
-    const meshRef = useRef<THREE.Group>(null);
+    return (
+        <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onClick}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 w-full text-left ${
+                isActive
+                    ? 'bg-blue-500 text-white shadow-lg'
+                    : 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-200'
+            }`}
+        >
+            <Icon className="w-5 h-5" />
+            <span className="font-medium">{category.name}</span>
+            {count > 0 && (
+                <span className={`ml-auto text-sm font-bold px-2 py-0.5 rounded-full ${
+                    isActive ? 'bg-white/20' : 'bg-gray-100'
+                }`}>
+                    {count}
+                </span>
+            )}
+        </motion.button>
+    );
+};
 
-    useFrame((state) => {
-        if (meshRef.current) {
-            // Gentle rotation if auto-rotate is enabled
-            meshRef.current.rotation.y += 0.002;
+export default function IngredientLibrary() {
+    const {
+        availableIngredients,
+        userPreferences,
+        addIngredient,
+        addToFavoriteIngredients,
+        removeFromFavoriteIngredients,
+        showNotification,
+        loadAvailableIngredients
+    } = useSnackStore();
+
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState('All');
+    const [sortBy, setSortBy] = useState<'name' | 'popularity' | 'protein' | 'health'>('popularity');
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [showFilters, setShowFilters] = useState(false);
+    const [selectedIngredient, setSelectedIngredient] = useState<string | null>(null);
+
+    // Load ingredients on mount
+    useEffect(() => {
+        if (availableIngredients.length === 0) {
+            loadAvailableIngredients();
         }
-    });
+    }, [availableIngredients.length, loadAvailableIngredients]);
 
-    const getBaseGeometry = () => {
-        switch (type) {
-            case 'energy-bar':
-                return (
-                    <Box args={[1.5, 0.3, 0.8]}>
-                        <meshStandardMaterial color="#DEB887" roughness={0.4} />
-                    </Box>
-                );
-            case 'protein-ball':
-                return (
-                    <Sphere args={[0.6, 16, 12]}>
-                        <meshStandardMaterial color="#DEB887" roughness={0.4} />
-                    </Sphere>
-                );
-            case 'granola-cluster':
-                return (
-                    <group>
-                        {/* Multiple small spheres to create cluster effect */}
-                        {Array.from({ length: 8 }, (_, i) => (
-                            <Sphere
-                                key={i}
-                                position={[
-                                    (Math.random() - 0.5) * 0.8,
-                                    (Math.random() - 0.5) * 0.4,
-                                    (Math.random() - 0.5) * 0.8
-                                ]}
-                                args={[0.15 + Math.random() * 0.1, 8, 6]}
-                            >
-                                <meshStandardMaterial color="#DEB887" roughness={0.5} />
-                            </Sphere>
-                        ))}
-                    </group>
-                );
-            case 'smoothie-bowl':
-                return (
-                    <group>
-                        <Cylinder args={[0.8, 0.6, 0.4, 16]}>
-                            <meshStandardMaterial color="#E6E6FA" roughness={0.2} />
-                        </Cylinder>
-                        <Cylinder args={[0.75, 0.55, 0.35, 16]} position={[0, 0.1, 0]}>
-                            <meshStandardMaterial color="#DDA0DD" roughness={0.3} />
-                        </Cylinder>
-                    </group>
-                );
-            default:
-                return (
-                    <Box args={[1.2, 0.3, 0.8]}>
-                        <meshStandardMaterial color="#DEB887" roughness={0.4} />
-                    </Box>
-                );
-        }
-    };
+    // Enhanced ingredients with visual data
+    const enhancedIngredients = useMemo(() => {
+        return availableIngredients.map(ingredient => ({
+            ...ingredient,
+            visual: INGREDIENT_VISUALS[ingredient.name as keyof typeof INGREDIENT_VISUALS] || {
+                emoji: '🥗',
+                color: '#CD853F',
+                gradient: 'from-gray-200 to-gray-300',
+                category: 'Other',
+                description: 'Healthy ingredient for your snack',
+                benefits: ['Nutritious', 'Natural', 'Healthy'],
+                popularity: 50,
+                texture: 'Mixed'
+            }
+        }));
+    }, [availableIngredients]);
 
-    // Calculate ingredient positions based on snack type
-    const getIngredientPositions = (): [number, number, number][] => {
-        const positions: [number, number, number][] = [];
+    // Filter and sort ingredients
+    const filteredIngredients = useMemo(() => {
+        let filtered = enhancedIngredients.filter(ingredient => {
+            const matchesSearch = ingredient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                ingredient.visual.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                ingredient.visual.description.toLowerCase().includes(searchQuery.toLowerCase());
 
-        ingredients.forEach((_, index) => {
-            switch (type) {
-                case 'energy-bar':
-                    // Arrange ingredients on top and embedded in bar
-                    positions.push([
-                        (Math.random() - 0.5) * 1.2,
-                        0.2 + Math.random() * 0.1,
-                        (Math.random() - 0.5) * 0.6
-                    ]);
-                    break;
-                case 'protein-ball':
-                    // Distribute around sphere surface
-                    const phi = Math.random() * Math.PI * 2;
-                    const theta = Math.random() * Math.PI;
-                    const radius = 0.65;
-                    positions.push([
-                        radius * Math.sin(theta) * Math.cos(phi),
-                        radius * Math.cos(theta),
-                        radius * Math.sin(theta) * Math.sin(phi)
-                    ]);
-                    break;
-                case 'granola-cluster':
-                    // Scatter around cluster
-                    positions.push([
-                        (Math.random() - 0.5) * 1.2,
-                        Math.random() * 0.6,
-                        (Math.random() - 0.5) * 1.2
-                    ]);
-                    break;
-                case 'smoothie-bowl':
-                    // Place on top of bowl
-                    const angle = (index / ingredients.length) * Math.PI * 2;
-                    const r = 0.3 + Math.random() * 0.3;
-                    positions.push([
-                        Math.cos(angle) * r,
-                        0.4 + Math.random() * 0.1,
-                        Math.sin(angle) * r
-                    ]);
-                    break;
+            const matchesCategory = selectedCategory === 'All' || ingredient.visual.category === selectedCategory;
+
+            return matchesSearch && matchesCategory;
+        });
+
+        // Sort ingredients
+        filtered.sort((a, b) => {
+            switch (sortBy) {
+                case 'name':
+                    return a.name.localeCompare(b.name);
+                case 'popularity':
+                    return b.visual.popularity - a.visual.popularity;
+                case 'protein':
+                    return b.nutrition.protein_g - a.nutrition.protein_g;
+                case 'health':
+                    const scoreA = Math.round((a.nutrition.protein_g * 2 + a.nutrition.fiber_g * 3 + (100 - a.nutrition.sugars_g)) / 3);
+                    const scoreB = Math.round((b.nutrition.protein_g * 2 + b.nutrition.fiber_g * 3 + (100 - b.nutrition.sugars_g)) / 3);
+                    return scoreB - scoreA;
                 default:
-                    positions.push([
-                        (Math.random() - 0.5) * 1.0,
-                        0.2,
-                        (Math.random() - 0.5) * 0.6
-                    ]);
+                    return 0;
             }
         });
 
-        return positions;
+        return filtered;
+    }, [enhancedIngredients, searchQuery, selectedCategory, sortBy]);
+
+    // Update category counts
+    const categoriesWithCounts = useMemo(() => {
+        return CATEGORIES.map(category => ({
+            ...category,
+            count: category.name === 'All'
+                ? enhancedIngredients.length
+                : enhancedIngredients.filter(ing => ing.visual.category === category.name).length
+        }));
+    }, [enhancedIngredients]);
+
+    const handleAddIngredient = async (ingredient: any, amount: number) => {
+        try {
+            await addIngredient({
+                name: ingredient.name,
+                amount_g: amount,
+                nutrition: ingredient.nutrition,
+                properties: ingredient.properties,
+                category: ingredient.category
+            });
+        } catch (error) {
+            showNotification({
+                type: 'error',
+                message: 'Failed to add ingredient'
+            });
+        }
     };
 
-    const ingredientPositions = getIngredientPositions();
+    const handleToggleFavorite = (ingredientName: string) => {
+        const isFavorite = userPreferences.favorite_ingredients.includes(ingredientName);
 
-    return (
-        <group ref={meshRef}>
-            {/* Base shape */}
-            {getBaseGeometry()}
-
-            {/* Ingredients */}
-            {ingredients.map((ingredient, index) => (
-                <Ingredient3D
-                    key={`${ingredient.name}-${index}`}
-                    ingredient={ingredient}
-                    position={ingredientPositions[index] || [0, 0, 0]}
-                />
-            ))}
-        </group>
-    );
-};
-
-// Camera controls component
-const CameraController: React.FC = () => {
-    const { camera } = useThree();
-    const { camera: cameraState, updateCamera } = useSnackStore();
-
-    useEffect(() => {
-        camera.position.set(...cameraState.position);
-        camera.lookAt(...cameraState.target);
-    }, [camera, cameraState]);
-
-    return null;
-};
-
-// Loading fallback
-const LoadingFallback: React.FC = () => (
-    <Html center>
-        <div className="flex flex-col items-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-2"></div>
-            <div className="text-gray-600 text-sm">Loading 3D scene...</div>
-        </div>
-    </Html>
-);
-
-// Drop zone for ingredients
-const DropZone: React.FC = () => {
-    const [isDragOver, setIsDragOver] = useState(false);
-    const { addIngredient } = useSnackStore();
-
-    useEffect(() => {
-        const handleDragOver = (e: DragEvent) => {
-            e.preventDefault();
-            setIsDragOver(true);
-        };
-
-        const handleDragLeave = () => {
-            setIsDragOver(false);
-        };
-
-        const handleDrop = async (e: DragEvent) => {
-            e.preventDefault();
-            setIsDragOver(false);
-
-            // Listen for custom ingredient drag events
-            const handleIngredientDrop = (event: CustomEvent) => {
-                const ingredientData = event.detail;
-                addIngredient(ingredientData);
-            };
-
-            window.addEventListener('ingredient-drag-start', handleIngredientDrop as EventListener);
-
-            return () => {
-                window.removeEventListener('ingredient-drag-start', handleIngredientDrop as EventListener);
-            };
-        };
-
-        const canvas = document.querySelector('canvas');
-        if (canvas) {
-            canvas.addEventListener('dragover', handleDragOver);
-            canvas.addEventListener('dragleave', handleDragLeave);
-            canvas.addEventListener('drop', handleDrop);
-
-            return () => {
-                canvas.removeEventListener('dragover', handleDragOver);
-                canvas.removeEventListener('dragleave', handleDragLeave);
-                canvas.removeEventListener('drop', handleDrop);
-            };
+        if (isFavorite) {
+            removeFromFavoriteIngredients(ingredientName);
+        } else {
+            addToFavoriteIngredients(ingredientName);
         }
-    }, [addIngredient]);
+    };
 
-    if (isDragOver) {
-        return (
-            <Html fullscreen>
-                <div className="w-full h-full bg-blue-500 bg-opacity-20 border-4 border-dashed border-blue-500 flex items-center justify-center">
-                    <div className="bg-white rounded-lg p-6 shadow-lg">
-                        <div className="text-2xl text-blue-600 mb-2">🎯</div>
-                        <div className="font-semibold text-gray-900">Drop ingredient here!</div>
-                        <div className="text-sm text-gray-600">Add to your snack creation</div>
-                    </div>
-                </div>
-            </Html>
-        );
-    }
-
-    return null;
-};
-
-// Main Canvas Component
-export default function SnackCanvas() {
-    const {
-        currentSnack,
-        camera,
-        updateCamera,
-        ui
-    } = useSnackStore();
-
-    const [autoRotate, setAutoRotate] = useState(true);
-
-    const handleResetCamera = () => {
-        updateCamera({
-            position: [5, 5, 5],
-            target: [0, 0, 0],
-            zoom: 1
+    const handleShowDetails = (ingredient: any) => {
+        setSelectedIngredient(ingredient.name);
+        // Could open a modal with detailed ingredient information
+        showNotification({
+            type: 'info',
+            message: `${ingredient.visual.description} - Click to learn more!`
         });
     };
 
-    const handleCameraAngle = (angle: string) => {
-        switch (angle) {
-            case 'front':
-                updateCamera({ position: [0, 0, 5] });
-                break;
-            case 'side':
-                updateCamera({ position: [5, 0, 0] });
-                break;
-            case 'top':
-                updateCamera({ position: [0, 5, 0] });
-                break;
-            case 'beauty':
-                updateCamera({ position: [3, 4, 5] });
-                break;
-        }
-    };
+    if (!enhancedIngredients.length) {
+        return (
+            <div className="h-full bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
+                <div className="text-center">
+                    <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                        className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"
+                    />
+                    <p className="text-gray-600 font-medium">Loading delicious ingredients...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="relative w-full h-full bg-gradient-to-br from-blue-50 to-purple-50">
-            {/* 3D Canvas */}
-            <Canvas
-                shadows
-                camera={{
-                    position: camera.position,
-                    fov: 45,
-                    near: 0.1,
-                    far: 1000
-                }}
-                gl={{
-                    antialias: true,
-                    alpha: true,
-                    preserveDrawingBuffer: true
-                }}
-            >
-                <Suspense fallback={<LoadingFallback />}>
-                    {/* Lighting */}
-                    <ambientLight intensity={0.4} />
-                    <directionalLight
-                        position={[10, 10, 5]}
-                        intensity={1}
-                        castShadow
-                        shadow-mapSize={[1024, 1024]}
-                        shadow-camera-far={50}
-                        shadow-camera-left={-10}
-                        shadow-camera-right={10}
-                        shadow-camera-top={10}
-                        shadow-camera-bottom={-10}
-                    />
-                    <pointLight position={[-10, -10, -5]} intensity={0.3} />
+        <div className="h-full bg-gradient-to-br from-blue-50 to-purple-50 flex flex-col">
+            {/* Header */}
+            <div className="bg-white border-b border-gray-200 p-4">
+                <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 className="text-2xl font-bold text-gray-900">Ingredient Library</h2>
+                        <p className="text-gray-600">Drag ingredients to your snack canvas</p>
+                    </div>
 
-                    {/* Environment and background */}
-                    <Environment preset="studio" />
-
-                    {/* Ground shadow */}
-                    <ContactShadows
-                        opacity={0.3}
-                        scale={10}
-                        blur={1}
-                        far={10}
-                        resolution={256}
-                        color="#000000"
-                    />
-
-                    {/* Main snack model */}
-                    <SnackBase
-                        type={currentSnack.base.type}
-                        ingredients={currentSnack.ingredients}
-                    />
-
-                    {/* Camera controller */}
-                    <CameraController />
-
-                    {/* Controls */}
-                    <OrbitControls
-                        autoRotate={autoRotate}
-                        autoRotateSpeed={0.5}
-                        enablePan={true}
-                        enableZoom={true}
-                        enableRotate={true}
-                        minDistance={2}
-                        maxDistance={20}
-                        maxPolarAngle={Math.PI / 1.5}
-                    />
-
-                    {/* Drop zone */}
-                    <DropZone />
-
-                    {/* Empty state message */}
-                    {currentSnack.ingredients.length === 0 && (
-                        <Text
-                            position={[0, -2, 0]}
-                            fontSize={0.3}
-                            color="#666666"
-                            anchorX="center"
-                            anchorY="middle"
-                        >
-                            Drag ingredients here to start building
-                        </Text>
-                    )}
-                </Suspense>
-            </Canvas>
-
-            {/* Control Panel */}
-            <div className="absolute top-4 right-4 bg-white rounded-lg shadow-lg p-3 space-y-2">
-                <div className="text-sm font-semibold text-gray-700 mb-2">3D Controls</div>
-
-                {/* Camera angles */}
-                <div className="grid grid-cols-2 gap-1">
-                    {[
-                        { label: 'Front', value: 'front' },
-                        { label: 'Side', value: 'side' },
-                        { label: 'Top', value: 'top' },
-                        { label: 'Beauty', value: 'beauty' }
-                    ].map((angle) => (
+                    <div className="flex items-center gap-2">
                         <button
-                            key={angle.value}
-                            className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-                            onClick={() => handleCameraAngle(angle.value)}
+                            onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+                            className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                         >
-                            {angle.label}
+                            {viewMode === 'grid' ? <List className="w-5 h-5" /> : <Grid3X3 className="w-5 h-5" />}
+                        </button>
+
+                        <button
+                            onClick={() => setShowFilters(!showFilters)}
+                            className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                        >
+                            <Filter className="w-4 h-4" />
+                            Filters
+                        </button>
+                    </div>
+                </div>
+
+                {/* Search Bar */}
+                <div className="relative mb-4">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                        type="text"
+                        placeholder="Search ingredients, categories, or benefits..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm"
+                    />
+                    {searchQuery && (
+                        <button
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    )}
+                </div>
+
+                {/* Sort Options */}
+                <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600 font-medium">Sort by:</span>
+                    {[
+                        { value: 'popularity', label: 'Popularity' },
+                        { value: 'name', label: 'Name' },
+                        { value: 'protein', label: 'Protein' },
+                        { value: 'health', label: 'Health Score' }
+                    ].map((option) => (
+                        <button
+                            key={option.value}
+                            onClick={() => setSortBy(option.value as any)}
+                            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                                sortBy === option.value
+                                    ? 'bg-blue-500 text-white'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                        >
+                            {option.label}
                         </button>
                     ))}
                 </div>
+            </div>
 
-                {/* Action buttons */}
-                <div className="flex gap-1">
-                    <button
-                        className="p-2 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-                        onClick={() => setAutoRotate(!autoRotate)}
-                        title={autoRotate ? 'Pause rotation' : 'Start rotation'}
-                    >
-                        {autoRotate ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                    </button>
+            <div className="flex-1 flex overflow-hidden">
+                {/* Categories Sidebar */}
+                <div className={`bg-white border-r border-gray-200 transition-all duration-300 ${
+                    showFilters ? 'w-64' : 'w-0'
+                } overflow-hidden`}>
+                    <div className="p-4">
+                        <h3 className="font-semibold text-gray-900 mb-3">Categories</h3>
+                        <div className="space-y-2">
+                            {categoriesWithCounts.map((category) => (
+                                <FilterButton
+                                    key={category.name}
+                                    category={category}
+                                    isActive={selectedCategory === category.name}
+                                    count={category.count}
+                                    onClick={() => setSelectedCategory(category.name)}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                </div>
 
-                    <button
-                        className="p-2 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-                        onClick={handleResetCamera}
-                        title="Reset camera"
-                    >
-                        <RotateCcw className="w-4 h-4" />
-                    </button>
+                {/* Ingredients Grid */}
+                <div className="flex-1 overflow-y-auto p-4">
+                    {filteredIngredients.length === 0 ? (
+                        <div className="text-center py-12">
+                            <div className="text-6xl mb-4">🔍</div>
+                            <h3 className="text-lg font-semibold text-gray-600 mb-2">No ingredients found</h3>
+                            <p className="text-gray-500">Try adjusting your search or filters</p>
+                        </div>
+                    ) : (
+                        <motion.div
+                            layout
+                            className={`grid gap-4 ${
+                                viewMode === 'grid'
+                                    ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+                                    : 'grid-cols-1'
+                            }`}
+                        >
+                            {filteredIngredients.map((ingredient, index) => (
+                                <IngredientCard
+                                    key={ingredient.name}
+                                    ingredient={ingredient}
+                                    visual={ingredient.visual}
+                                    isFavorite={userPreferences.favorite_ingredients.includes(ingredient.name)}
+                                    onAdd={(amount) => handleAddIngredient(ingredient, amount)}
+                                    onToggleFavorite={() => handleToggleFavorite(ingredient.name)}
+                                    onShowDetails={() => handleShowDetails(ingredient)}
+                                />
+                            ))}
+                        </motion.div>
+                    )}
+
+                    {/* Results Summary */}
+                    <div className="mt-6 text-center text-sm text-gray-500">
+                        Showing {filteredIngredients.length} of {enhancedIngredients.length} ingredients
+                        {selectedCategory !== 'All' && ` in ${selectedCategory}`}
+                    </div>
                 </div>
             </div>
 
-            {/* Info panel */}
-            <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-3">
-                <div className="text-sm font-semibold text-gray-700 mb-1">
-                    {currentSnack.name || 'Custom Snack'}
-                </div>
-                <div className="text-xs text-gray-600">
-                    {currentSnack.ingredients.length} ingredients • {currentSnack.base.type.replace('-', ' ')}
-                </div>
-                {currentSnack.nutrition && (
-                    <div className="text-xs text-gray-600 mt-1">
-                        Health Score: {Math.round(currentSnack.nutrition.health_score)}/100
-                    </div>
-                )}
-            </div>
-
-            {/* Instructions overlay for empty state */}
-            {currentSnack.ingredients.length === 0 && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="bg-white bg-opacity-90 rounded-lg p-6 text-center max-w-md">
-                        <div className="text-4xl mb-3">🍫</div>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Start Building Your Snack</h3>
-                        <p className="text-gray-600 text-sm">
-                            Drag ingredients from the library onto this 3D canvas to start creating your perfect healthy snack!
-                        </p>
-                    </div>
-                </div>
-            )}
+            {/* Custom Styles */}
+            <style jsx>{`
+                .slider {
+                    background: linear-gradient(to right, #3B82F6 0%, #3B82F6 ${(amount / 100) * 100}%, #E5E7EB ${(amount / 100) * 100}%, #E5E7EB 100%);
+                }
+                
+                .slider::-webkit-slider-thumb {
+                    appearance: none;
+                    width: 20px;
+                    height: 20px;
+                    background: #3B82F6;
+                    cursor: pointer;
+                    border-radius: 50%;
+                    border: 2px solid white;
+                    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+                }
+                
+                .slider::-moz-range-thumb {
+                    width: 20px;
+                    height: 20px;
+                    background: #3B82F6;
+                    cursor: pointer;
+                    border-radius: 50%;
+                    border: 2px solid white;
+                    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+                }
+            `}</style>
         </div>
     );
 }
