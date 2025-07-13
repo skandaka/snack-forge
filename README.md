@@ -1,4 +1,3 @@
-
 # 🍔 SnackSmith: The AI-Powered 3D Snack Builder
 
 <div align="center">
@@ -20,15 +19,11 @@
 
 ## ✨ Key Features
 
-* **Interactive 3D Canvas:** Drag and drop ingredients into a live 3D scene powered by `React Three Fiber` and `three.js`. Watch your snack come to life with procedurally generated models for each ingredient.
-* **Real-Time Nutrition Analysis:** A robust Python backend calculates detailed nutritional information (calories, macros, vitamins) for your creation as you build it.
-* **Live AI Coaching (Powered by Google Gemini):**
-    * **Chat with an AI:** Ask questions about your snack, get suggestions, and receive instant feedback.
-    * **One-Click Improvements:** Ask the AI to automatically optimize your snack for goals like "higher protein" or "lower sugar."
-    * **AI-Generated Recommendations:** Let the AI invent a completely new snack for you based on your saved preferences.
-* **Dynamic UI:** A professional, responsive interface built with Next.js, TypeScript, and Tailwind CSS, featuring resizable panels and a modern aesthetic.
+* **Interactive 3D Canvas:** Drag and drop ingredients into a live 3D scene powered by `React Three Fiber` and `three.js`.
+* **Real-Time Nutrition Analysis:** A robust Python backend calculates detailed nutritional information for your creation as you build it.
+* **Live AI Coaching (Powered by Google Gemini):** Chat with an AI, get one-click snack improvements, and receive new snack recommendations.
+* **Dynamic UI:** A professional, responsive interface built with Next.js, TypeScript, and Tailwind CSS.
 * **State Management with Zustand:** A centralized store ensures the UI, 3D canvas, and AI coach are always in sync.
-* **Full-Stack Architecture:** A decoupled frontend and backend architecture for scalability and separation of concerns.
 
 ## 🛠️ Tech Stack
 
@@ -38,8 +33,9 @@
 | **3D** | [**React Three Fiber**](https://docs.pmnd.rs/react-three-fiber/getting-started/introduction), [**three.js**](https://threejs.org/), [**Drei**](https://github.com/pmndrs/drei)      |
 | **AI** | [**Google Gemini API**](https://ai.google.dev/)                                                              |
 | **State** | [**Zustand**](https://github.com/pmndrs/zustand)                                                             |
-| **Backend** | [**Flask**](https://flask.palletsprojects.com/), [**Python**](https://www.python.org/)                                                               |
+| **Backend** | [**FastAPI**](https://fastapi.tiangolo.com/)/[**Flask**](https://flask.palletsprojects.com/) with [**Uvicorn**](https://www.uvicorn.org/) Server |
 | **Styling** | [**Framer Motion**](https://www.framer.com/motion/) for animations                                           |
+
 
 ## 🚀 Getting Started
 
@@ -49,7 +45,7 @@ Follow these instructions to get the project up and running on your local machin
 
 * **Node.js** (v18 or later) - [Download here](https://nodejs.org/)
 * **Python** (v3.8 or later) - [Download here](https://www.python.org/)
-    * During installation on Windows, make sure to check the box that says **"Add Python to PATH"**.
+    * **Important (Windows):** During installation, make sure to check the box that says **"Add Python to PATH"**.
 * A **Google Gemini API Key**.
 
 ### 1. Clone the Repository
@@ -63,28 +59,33 @@ cd snack-forge
 
 ### 2. Backend Setup (Python)
 
-These steps set up the Python server that handles nutrition calculations.
+This is the most critical step. **Follow the order carefully.**
 
 ```bash
-# Navigate to the backend directory
+# 1. Navigate to the backend directory
 cd backend
 
-# Create a virtual environment
-# On macOS/Linux:
+# 2. Create a Python virtual environment
+#    On macOS/Linux:
 python3 -m venv venv
-# On Windows:
+#    On Windows:
 python -m venv venv
 
-# Activate the virtual environment
-# On macOS/Linux (zsh, bash):
+# 3. Activate the virtual environment. YOU MUST DO THIS BEFORE INSTALLING PACKAGES.
+#    On macOS/Linux (zsh, bash):
 source venv/bin/activate
-# On Windows (Command Prompt):
+#    On Windows (Command Prompt):
 venv\Scripts\activate
-# On Windows (PowerShell):
+#    On Windows (PowerShell):
 .\venv\Scripts\Activate.ps1
 
-# Install the required Python packages
+#    Your terminal prompt should now show `(venv)` at the beginning.
+
+# 4. Install the required Python packages INTO the activated virtual environment.
 pip install -r requirements.txt
+
+# 5. (Optional) Verify the installation. This command should show uvicorn's details.
+pip show uvicorn
 ```
 
 ### 3. Frontend Setup (Next.js)
@@ -92,7 +93,7 @@ pip install -r requirements.txt
 These steps set up the user interface and AI components.
 
 ```bash
-# Navigate to the frontend directory from the root
+# Navigate to the frontend directory from the project's root folder
 cd ../frontend
 
 # Install Node.js dependencies
@@ -118,60 +119,47 @@ You must run both the backend and frontend servers at the same time in **two sep
 
 ```bash
 # Make sure you are in the 'backend' directory
-cd path/to/your/project/snack-forge/backend
+# From project root: cd backend
 
 # Activate the virtual environment if it's not already active
 # macOS/Linux: source venv/bin/activate
 # Windows: venv\Scripts\activate
 
-# Run the Flask server using the python module for compatibility
-# On macOS/Linux:
-python3 -m flask run
-# On Windows:
-python -m flask run
+# Run the Uvicorn server. This is the correct command.
+uvicorn app:app --reload --host 0.0.0.0 --port 8000
 ```
-
-You should see output indicating the server is running on `http://127.0.0.1:5000`. Leave this terminal running.
+You should see output indicating the server is running on `http://0.0.0.0:8000`. Leave this terminal running.
 
 #### Terminal 2: Start the Frontend
 
 ```bash
 # Make sure you are in the 'frontend' directory
-cd path/to/your/project/snack-forge/frontend
+# From project root: cd frontend
 
 # Run the Next.js development server
 npm run dev
 ```
-
 The frontend will start up and be available at `http://localhost:3000`.
 
 Open `http://localhost:3000` in your browser. You can now start building snacks!
 
 ## 🔍 Troubleshooting
 
-* **Error: `command not found: flask` or `zsh: command not found: flask`**
-    * **Cause:** The Python virtual environment is not active, or Python scripts are not in your system's PATH.
-    * **Solution:** Always run the backend server using the command `python3 -m flask run` (or `python -m flask run` on Windows). This command uses the Python interpreter to find and run the `flask` module directly, bypassing any PATH issues.
+* **Error: `No module named Flask` or `No module named uvicorn`**
+    * **Cause:** This is the most common error. It means you ran `pip install -r requirements.txt` **before** activating the virtual environment. The packages were installed globally instead of inside your project's isolated `venv` folder.
+    * **Solution:**
+        1.  Navigate to the `backend` directory.
+        2.  Activate the virtual environment (`source venv/bin/activate` or `venv\Scripts\activate`).
+        3.  Run `pip install -r requirements.txt` again. This will install the packages in the correct location.
+        4.  Run the server with `uvicorn app:app --reload --host 0.0.0.0 --port 8000`.
+
 * **AI Features Not Working / "Check your API key" error:**
     * **Cause:** The Gemini API key is missing, incorrect, or not loaded properly.
     * **Solution:**
         1.  Ensure the file in the `frontend` directory is named exactly `.env.local`.
         2.  Double-check that the variable name inside the file is `NEXT_PUBLIC_GEMINI_API_KEY`.
-        3.  Make sure you have restarted the `npm run dev` server after creating or changing the `.env.local` file.
-* **Error: `Cannot find module '...'` during `npm install` or `npm run dev`:**
-    * **Cause:** Your `node_modules` directory might be corrupted.
-    * **Solution:** Delete the `node_modules` folder and the `package-lock.json` file in the `frontend` directory, then run `npm install` again.
-
-## 🤝 Contributing
-
-Contributions are welcome! If you have ideas for new features, find a bug, or want to improve the code, please feel free to open an issue or submit a pull request.
-
-1.  Fork the Project
-2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3.  Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4.  Push to the Branch (`git push origin feature/AmazingFeature`)
-5.  Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License. See the `LICENSE` file for more details.
+        3.  **You must restart the `npm run dev` server** after creating or changing the `.env.local` file.
+* **Ingredients Not Loading:**
+       * **Solution:**
+             -> Reload the page!
+        
